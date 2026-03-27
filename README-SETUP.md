@@ -42,6 +42,14 @@ npx prisma generate
 npm run dev
 ```
 
+## Vercel Cron Keep-Alive
+
+This project includes a Vercel Cron job that calls `/api/keep-alive` once per day.
+
+Set `CRON_SECRET` in your Vercel project's environment variables so Vercel can authenticate the request automatically.
+
+The route runs a lightweight `SELECT 1` query against the database to register activity.
+
 ## Prisma Commands
 
 - `npx prisma migrate dev` - Run migrations during development

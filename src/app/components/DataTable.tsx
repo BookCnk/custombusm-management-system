@@ -84,9 +84,9 @@ const statusStyles = {
 };
 
 const statusLabels = {
-  active: "In Stock",
-  low: "Low Stock",
-  out: "Out of Stock",
+  active: "มีสินค้า",
+  low: "สินค้าใกล้หมด",
+  out: "สินค้าหมด",
 };
 
 export function DataTable() {
@@ -119,9 +119,9 @@ export function DataTable() {
       <div className="p-6 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Products</h3>
+            <h3 className="text-lg font-semibold text-gray-900">สินค้า</h3>
             <p className="text-sm text-gray-500 mt-1">
-              Manage your products and view their sales performance
+              จัดการสินค้าและดูผลการขาย
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -132,7 +132,7 @@ export function DataTable() {
               />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="ค้นหาสินค้า..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent w-64"
@@ -140,7 +140,7 @@ export function DataTable() {
             </div>
             <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Filter size={16} />
-              Filter
+              กรอง
             </button>
           </div>
         </div>
@@ -164,33 +164,33 @@ export function DataTable() {
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <button className="flex items-center gap-1 hover:text-gray-700 transition-colors">
-                  Product
+                  สินค้า
                   <ArrowUpDown size={14} />
                 </button>
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Category
+                หมวดหมู่
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <button className="flex items-center gap-1 hover:text-gray-700 transition-colors">
-                  Price
+                  ราคา
                   <ArrowUpDown size={14} />
                 </button>
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Stock
+                สต็อก
               </th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Status
+                สถานะ
               </th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <button className="flex items-center gap-1 hover:text-gray-700 transition-colors ml-auto">
-                  Sales
+                  ยอดขาย
                   <ArrowUpDown size={14} />
                 </button>
               </th>
               <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Actions
+                จัดการ
               </th>
             </tr>
           </thead>
@@ -232,7 +232,7 @@ export function DataTable() {
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-600">
-                    {product.stock} units
+                    {product.stock} ชิ้น
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -262,13 +262,13 @@ export function DataTable() {
       {/* Pagination */}
       <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
         <div className="text-sm text-gray-500">
-          Showing <span className="font-medium text-gray-900">1</span> to{" "}
+          แสดง <span className="font-medium text-gray-900">1</span> ถึง{" "}
           <span className="font-medium text-gray-900">
             {filteredProducts.length}
           </span>{" "}
-          of{" "}
+          จาก{" "}
           <span className="font-medium text-gray-900">{products.length}</span>{" "}
-          results
+          รายการ
         </div>
         <div className="flex items-center gap-2">
           <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

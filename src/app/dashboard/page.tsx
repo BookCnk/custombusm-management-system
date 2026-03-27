@@ -16,14 +16,12 @@ export default function DashboardPage() {
       />
       <div className="flex-1 transition-all duration-300">
         <Header
-          title="Dashboard V1"
-          breadcrumbs={["Dashboard", "Dashboard V1"]}
+          title="แดชบอร์ด V1"
+          breadcrumbs={["แดชบอร์ด", "แดชบอร์ด V1"]}
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <main className="p-6">
-          <div className="space-y-6">
-            <DataTable />
-          </div>
+          <DataTable />
         </main>
       </div>
     </div>

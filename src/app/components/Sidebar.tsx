@@ -34,7 +34,7 @@ export function Sidebar({
           <button
             onClick={onToggle}
             className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0"
-            title={isOpen ? "Collapse sidebar" : "Expand sidebar"}>
+            title={isOpen ? "ยุบเมนู" : "ขยายเมนู"}>
             {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
@@ -46,7 +46,7 @@ export function Sidebar({
               href="/dashboard"
               className="flex items-center px-4 py-2 text-sm bg-purple-500/20 text-purple-300 rounded-lg">
               <LayoutDashboard size={18} className="mr-3" />
-              <span>Dashboard</span>
+              <span>แดชบอร์ด</span>
             </Link>
           </nav>
         )}

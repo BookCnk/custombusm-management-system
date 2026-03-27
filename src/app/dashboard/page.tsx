@@ -14,12 +14,12 @@ export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
-      <div className="lg:ml-64 transition-all duration-300">
+      <div className="flex-1 transition-all duration-300">
         <Header
           title="Dashboard V1"
           breadcrumbs={["Dashboard", "Dashboard V1"]}

@@ -55,7 +55,7 @@ export function TopSellingProducts() {
                 {product.price}
               </p>
             </div>
-            <button className="px-4 py-1.5 text-xs font-medium text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors">
+            <button className="px-4 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
               View Details
             </button>
           </div>

@@ -25,7 +25,7 @@ export function TeamCards() {
         <div
           key={member.name}
           className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-100 overflow-hidden">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 overflow-hidden">
             <Image
               src={member.image}
               alt={member.name}
@@ -37,17 +37,17 @@ export function TeamCards() {
           <h4 className="font-semibold text-gray-900">{member.name}</h4>
           <p className="text-sm text-gray-500 mb-1">{member.role}</p>
           <p className="text-xs text-gray-400 mb-4">{member.description}</p>
-          <button className="px-4 py-1.5 text-xs font-medium text-purple-600 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors mb-4">
+          <button className="px-4 py-1.5 text-xs font-medium text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors mb-4">
             Hire Me
           </button>
           <div className="flex items-center justify-center gap-3">
-            <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors">
+            <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
               <Globe size={16} />
             </button>
-            <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors">
+            <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
               <MessageCircle size={16} />
             </button>
-            <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors">
+            <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
               <Share2 size={16} />
             </button>
           </div>

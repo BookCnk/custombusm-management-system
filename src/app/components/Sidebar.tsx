@@ -1,7 +1,28 @@
 "use client";
 
-import { LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  LayoutDashboard,
+  ChevronLeft,
+  ChevronRight,
+  Bus,
+  MapPin,
+  MapPinned,
+  CalendarDays,
+  Ticket,
+  LogOut,
+} from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { clsx } from "clsx";
+
+const menuItems = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "แดชบอร์ด" },
+  { href: "/buses", icon: Bus, label: "จัดการรถบัส" },
+  { href: "/routes", icon: MapPinned, label: "จัดการเส้นทาง" },
+  { href: "/stations", icon: MapPin, label: "จัดการจุดจอด" },
+  { href: "/schedules", icon: CalendarDays, label: "ตารางเดินรถ" },
+  { href: "/bookings", icon: Ticket, label: "การจองที่นั่ง" },
+];
 
 export function Sidebar({
   isOpen,
@@ -10,51 +31,81 @@ export function Sidebar({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const pathname = usePathname();
+
   return (
     <>
-      {/* Sidebar */}
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Close menu overlay"
+          className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+
       <aside
-        className={`fixed left-0 top-0 h-full bg-slate-900 text-white flex flex-col overflow-y-auto z-50 transition-all duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 z-50 flex h-full flex-col overflow-y-auto bg-slate-900 text-white transition-all duration-300 ease-in-out ${
           isOpen
-            ? "w-64 translate-x-0"
+            ? "w-72 max-w-[85vw] translate-x-0"
             : "w-0 -translate-x-full lg:w-16 lg:translate-x-0"
         }`}>
-        {/* Logo & Toggle button */}
-        <div className="p-4 flex items-center justify-between h-16 shrink-0">
+        <div className="flex h-16 shrink-0 items-center justify-between p-4">
           {isOpen && (
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center shrink-0">
-                <span className="font-bold text-white">A</span>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500">
+                <Bus size={20} className="text-white" />
               </div>
-              <span className="font-semibold text-lg whitespace-nowrap">
-                AatroX
+              <span className="whitespace-nowrap text-lg font-semibold">
+                BusManage
               </span>
             </div>
           )}
           <button
             onClick={onToggle}
-            className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors shrink-0"
+            className="shrink-0 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             title={isOpen ? "ยุบเมนู" : "ขยายเมนู"}>
             {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
 
-        {/* Nav - only show when open */}
         {isOpen && (
-          <nav className="flex-1 px-3 py-4">
-            <Link
-              href="/dashboard"
-              className="flex items-center px-4 py-2 text-sm bg-purple-500/20 text-purple-300 rounded-lg">
-              <LayoutDashboard size={18} className="mr-3" />
-              <span>แดชบอร์ด</span>
-            </Link>
+          <nav className="flex-1 space-y-1 px-3 py-4">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={clsx(
+                    "flex items-center rounded-lg px-4 py-2.5 text-sm transition-colors",
+                    isActive
+                      ? "bg-blue-500/20 text-blue-300"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white",
+                  )}>
+                  <Icon size={18} className="mr-3 shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
+        )}
+
+        {isOpen && (
+          <div className="border-t border-white/10 p-3">
+            <button className="flex w-full items-center rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-white/10 hover:text-white">
+              <LogOut size={18} className="mr-3 shrink-0" />
+              <span>ออกจากระบบ</span>
+            </button>
+          </div>
         )}
       </aside>
 
-      {/* Spacer for fixed sidebar - adjusts with sidebar width */}
       <div
-        className={`hidden lg:block transition-all duration-300 ${isOpen ? "w-64" : "w-16"}`}
+        className={`hidden transition-all duration-300 lg:block ${isOpen ? "w-72" : "w-16"}`}
       />
     </>
   );

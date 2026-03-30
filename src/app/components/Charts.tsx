@@ -26,21 +26,27 @@ const barData = [
 ];
 
 const pieData = [
-  { name: "USA", value: 35, color: "#8b5cf6" },
-  { name: "Germany", value: 25, color: "#c4b5fd" },
-  { name: "UK", value: 20, color: "#ddd6fe" },
-  { name: "France", value: 20, color: "#ede9fe" },
+  { name: "USA", value: 35, color: "#3b82f6" },
+  { name: "Germany", value: 25, color: "#93c5fd" },
+  { name: "UK", value: 20, color: "#bfdbfe" },
+  { name: "France", value: 20, color: "#dbeafe" },
 ];
 
 export function Charts() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">This Year Sales</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          This Year Sales
+        </h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#f3f4f6"
+              />
               <XAxis
                 dataKey="month"
                 axisLine={false}
@@ -53,15 +59,17 @@ export function Charts() {
                 tick={{ fill: "#9ca3af", fontSize: 12 }}
               />
               <Tooltip />
-              <Bar dataKey="value1" fill="#c4b5fd" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="value2" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value1" fill="#93c5fd" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value2" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales By Countries</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Sales By Countries
+        </h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -72,8 +80,7 @@ export function Charts() {
                 innerRadius={60}
                 outerRadius={80}
                 paddingAngle={0}
-                dataKey="value"
-              >
+                dataKey="value">
                 {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}

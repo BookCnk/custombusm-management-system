@@ -37,14 +37,14 @@ export function SalesCards() {
             <AreaChart data={monthData}>
               <defs>
                 <linearGradient id="colorMonth" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="#8b5cf6"
+                stroke="#3b82f6"
                 fill="url(#colorMonth)"
                 strokeWidth={2}
               />

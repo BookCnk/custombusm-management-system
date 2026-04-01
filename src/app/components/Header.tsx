@@ -2,22 +2,23 @@
 
 import { Bell, Settings, Search, Menu } from "lucide-react";
 import Image from "next/image";
+import { useSidebar } from "./SidebarContext";
 
 export function Header({
   title = "Dashboard",
   breadcrumbs = ["Dashboard"],
-  onMenuToggle,
 }: {
   title?: string;
   breadcrumbs?: string[];
-  onMenuToggle?: () => void;
 }) {
+  const { toggle } = useSidebar();
+
   return (
     <header className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-4 sm:items-center">
         <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
           <button
-            onClick={onMenuToggle}
+            onClick={toggle}
             className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 lg:hidden">
             <Menu size={20} />
           </button>

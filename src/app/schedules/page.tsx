@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Header } from "../components/Header";
+import CustomSelect from "../components/CustomSelect";
 import {
   CalendarDays,
   Plus,
@@ -20,6 +21,8 @@ import {
   Phone,
   User,
   AlertTriangle,
+  Copy,
+  LayoutGrid,
 } from "lucide-react";
 
 // Mock Data
@@ -181,10 +184,11 @@ function Modal({
 }
 
 export default function SchedulesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("2026-03-31");
   const [schedules, setSchedules] = useState(mockSchedules);
+  const [filterBus, setFilterBus] = useState("");
+  const [filterRoute, setFilterRoute] = useState("");
 
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -206,6 +210,8 @@ export default function SchedulesPage() {
   const filteredSchedules = schedules.filter(
     (schedule) =>
       schedule.departureDate === selectedDate &&
+      (filterBus === "" || schedule.busId.toString() === filterBus) &&
+      (filterRoute === "" || schedule.routeId.toString() === filterRoute) &&
       (schedule.route.routeName
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
@@ -215,11 +221,13 @@ export default function SchedulesPage() {
   );
 
   const handleCreate = () => {
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     setFormData({
       busId: "",
       routeId: "",
       departureDate: selectedDate,
-      departureTime: "",
+      departureTime: currentTime,
     });
     setIsCreateModalOpen(true);
   };
@@ -296,6 +304,16 @@ export default function SchedulesPage() {
     }
   };
 
+  const handleDuplicate = (schedule: (typeof mockSchedules)[0]) => {
+    const newSchedule = {
+      ...schedule,
+      id: Math.max(...schedules.map((s) => s.id), 0) + 1,
+      departureDate: selectedDate,
+      bookingsCount: 0,
+    };
+    setSchedules([...schedules, newSchedule]);
+  };
+
   const nextDate = () => {
     const date = new Date(selectedDate);
     date.setDate(date.getDate() + 1);
@@ -310,16 +328,9 @@ export default function SchedulesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+      <Sidebar />
       <div className="flex-1 transition-all duration-300 min-w-0">
-        <Header
-          title="ตารางเดินรถ"
-          breadcrumbs={["หน้าหลัก", "ตารางเดินรถ"]}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
+        <Header title="ตารางเดินรถ" breadcrumbs={["หน้าหลัก", "ตารางเดินรถ"]} />
         <main className="p-4 sm:p-6">
           {/* Date Navigation */}
           <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
@@ -382,7 +393,7 @@ export default function SchedulesPage() {
 
           {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
               <div className="relative">
                 <Search
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -393,7 +404,7 @@ export default function SchedulesPage() {
                   placeholder="ค้นหารอบรถ..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+                  className="pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-48"
                 />
               </div>
               <input
@@ -401,6 +412,28 @@ export default function SchedulesPage() {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto"
+              />
+              <CustomSelect
+                value={filterBus}
+                onChange={(value) => setFilterBus(value.toString())}
+                options={[
+                  { value: "", label: "ทุกรถบัส" },
+                  ...mockBuses.map((bus) => ({
+                    value: bus.id.toString(),
+                    label: `${bus.busNumber} (${bus.type})`,
+                  })),
+                ]}
+              />
+              <CustomSelect
+                value={filterRoute}
+                onChange={(value) => setFilterRoute(value.toString())}
+                options={[
+                  { value: "", label: "ทุกเส้นทาง" },
+                  ...mockRoutes.map((route) => ({
+                    value: route.id.toString(),
+                    label: route.routeName,
+                  })),
+                ]}
               />
             </div>
             <button
@@ -449,6 +482,15 @@ export default function SchedulesPage() {
                         }}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                         <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicate(schedule);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="คัดลอกรอบรถ">
+                        <Copy size={14} />
                       </button>
                       <button
                         onClick={(e) => {
@@ -546,40 +588,38 @@ export default function SchedulesPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               เลือกรถบัส
             </label>
-            <select
+            <CustomSelect
               value={formData.busId}
-              onChange={(e) =>
-                setFormData({ ...formData, busId: e.target.value })
+              onChange={(value) =>
+                setFormData({ ...formData, busId: value.toString() })
               }
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              required>
-              <option value="">-- เลือกรถบัส --</option>
-              {mockBuses.map((bus) => (
-                <option key={bus.id} value={bus.id}>
-                  {bus.busNumber} ({bus.type}) - {bus.totalSeats} ที่นั่ง
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "-- เลือกรถบัส --" },
+                ...mockBuses.map((bus) => ({
+                  value: bus.id.toString(),
+                  label: `${bus.busNumber} (${bus.type}) - ${bus.totalSeats} ที่นั่ง`,
+                })),
+              ]}
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               เลือกเส้นทาง
             </label>
-            <select
+            <CustomSelect
               value={formData.routeId}
-              onChange={(e) =>
-                setFormData({ ...formData, routeId: e.target.value })
+              onChange={(value) =>
+                setFormData({ ...formData, routeId: value.toString() })
               }
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              required>
-              <option value="">-- เลือกเส้นทาง --</option>
-              {mockRoutes.map((route) => (
-                <option key={route.id} value={route.id}>
-                  {route.routeName}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "-- เลือกเส้นทาง --" },
+                ...mockRoutes.map((route) => ({
+                  value: route.id.toString(),
+                  label: route.routeName,
+                })),
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -601,15 +641,43 @@ export default function SchedulesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 เวลาออกเดินทาง
               </label>
-              <input
-                type="time"
-                value={formData.departureTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, departureTime: e.target.value })
-                }
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  placeholder="ชั่วโมง"
+                  value={formData.departureTime?.split(":")[0] || ""}
+                  onChange={(e) => {
+                    const hours = e.target.value.padStart(2, "0");
+                    const minutes =
+                      formData.departureTime?.split(":")[1] || "00";
+                    setFormData({
+                      ...formData,
+                      departureTime: `${hours}:${minutes}`,
+                    });
+                  }}
+                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                />
+                <span className="text-gray-400 font-bold">:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={59}
+                  placeholder="นาที"
+                  value={formData.departureTime?.split(":")[1] || ""}
+                  onChange={(e) => {
+                    const hours = formData.departureTime?.split(":")[0] || "00";
+                    const minutes = e.target.value.padStart(2, "0");
+                    setFormData({
+                      ...formData,
+                      departureTime: `${hours}:${minutes}`,
+                    });
+                  }}
+                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                />
+                <span className="text-sm text-gray-500">น.</span>
+              </div>
             </div>
           </div>
 
@@ -855,6 +923,15 @@ export default function SchedulesPage() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
                 <Edit size={18} />
                 แก้ไขรอบรถ
+              </button>
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  alert("ดูผังที่นั่ง - จะเชื่อมต่อกับหน้า booking ในอนาคต");
+                }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
+                <LayoutGrid size={18} />
+                ดูผังที่นั่ง
               </button>
               <button
                 onClick={() => setIsViewModalOpen(false)}

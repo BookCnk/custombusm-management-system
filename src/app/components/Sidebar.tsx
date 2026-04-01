@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
+import { useSidebar } from "./SidebarContext";
 
 const menuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "แดชบอร์ด" },
@@ -24,14 +25,9 @@ const menuItems = [
   { href: "/bookings", icon: Ticket, label: "การจองที่นั่ง" },
 ];
 
-export function Sidebar({
-  isOpen,
-  onToggle,
-}: {
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
+export function Sidebar() {
   const pathname = usePathname();
+  const { isOpen, toggle } = useSidebar();
 
   return (
     <>
@@ -40,7 +36,7 @@ export function Sidebar({
           type="button"
           aria-label="Close menu overlay"
           className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
-          onClick={onToggle}
+          onClick={toggle}
         />
       )}
 
@@ -62,7 +58,7 @@ export function Sidebar({
             </div>
           )}
           <button
-            onClick={onToggle}
+            onClick={toggle}
             className="shrink-0 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
             title={isOpen ? "ยุบเมนู" : "ขยายเมนู"}>
             {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}

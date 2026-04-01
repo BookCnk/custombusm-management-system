@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Header } from "../components/Header";
 import {
@@ -102,20 +101,11 @@ const todaySchedules = [
 ];
 
 export default function DashboardPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+      <Sidebar />
       <div className="flex-1 min-w-0 transition-all duration-300">
-        <Header
-          title="แดชบอร์ด"
-          breadcrumbs={["หน้าหลัก", "แดชบอร์ด"]}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
+        <Header title="แดชบอร์ด" breadcrumbs={["หน้าหลัก", "แดชบอร์ด"]} />
         <main className="p-4 sm:p-6">
           {/* Stats Cards */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
@@ -124,7 +114,7 @@ export default function DashboardPage() {
               return (
                 <div
                   key={stat.label}
-                    className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+                  className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm text-gray-500">{stat.label}</p>

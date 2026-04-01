@@ -38,28 +38,29 @@ const mockRoutes = [
 ];
 
 export default function RoutesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRoute, setExpandedRoute] = useState<number | null>(1);
 
   const filteredRoutes = mockRoutes.filter((route) =>
-    route.routeName.toLowerCase().includes(searchQuery.toLowerCase())
+    route.routeName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar />
       <div className="flex-1 min-w-0 transition-all duration-300">
         <Header
           title="จัดการเส้นทาง"
           breadcrumbs={["หน้าหลัก", "จัดการเส้นทาง"]}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <main className="p-4 sm:p-6">
           {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={20}
+              />
               <input
                 type="text"
                 placeholder="ค้นหาเส้นทาง..."
@@ -77,17 +78,27 @@ export default function RoutesPage() {
           {/* Routes List */}
           <div className="space-y-4">
             {filteredRoutes.map((route) => (
-              <div key={route.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div
+                key={route.id}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div
                   className="flex cursor-pointer flex-col gap-4 p-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between sm:p-6"
-                  onClick={() => setExpandedRoute(expandedRoute === route.id ? null : route.id)}>
+                  onClick={() =>
+                    setExpandedRoute(
+                      expandedRoute === route.id ? null : route.id,
+                    )
+                  }>
                   <div className="flex min-w-0 items-center gap-4">
                     <div className="p-3 bg-blue-100 rounded-lg">
                       <MapPinned size={24} className="text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="truncate text-lg font-semibold text-gray-900">{route.routeName}</h3>
-                      <p className="text-sm text-gray-500">{route.stations.length} จุดจอด</p>
+                      <h3 className="truncate text-lg font-semibold text-gray-900">
+                        {route.routeName}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {route.stations.length} จุดจอด
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -108,13 +119,19 @@ export default function RoutesPage() {
                 {expandedRoute === route.id && (
                   <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                     <div className="border-t border-gray-100 pt-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">จุดจอดตามลำดับ:</h4>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        จุดจอดตามลำดับ:
+                      </h4>
                       <div className="flex flex-wrap gap-3">
                         {route.stations.map((station, index) => (
-                          <div key={station.id} className="flex items-center gap-2">
+                          <div
+                            key={station.id}
+                            className="flex items-center gap-2">
                             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
                               <MapPin size={16} className="text-blue-500" />
-                              <span className="text-sm text-gray-700">{station.stationName}</span>
+                              <span className="text-sm text-gray-700">
+                                {station.stationName}
+                              </span>
                             </div>
                             {index < route.stations.length - 1 && (
                               <span className="text-gray-400">→</span>

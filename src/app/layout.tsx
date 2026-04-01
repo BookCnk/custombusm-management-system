@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Kanit } from "next/font/google";
 import "./globals.css";
+import { SidebarProvider } from "./components/SidebarContext";
 
 const kanit = Kanit({
   variable: "--font-kanit",
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="th" className={`${kanit.variable} h-full antialiased`}>
       <body className={`${kanit.className} min-h-full flex flex-col`}>
-        {children}
+        <SidebarProvider>{children}</SidebarProvider>
       </body>
     </html>
   );

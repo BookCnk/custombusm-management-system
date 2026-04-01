@@ -32,7 +32,6 @@ const mockStations = [
 ];
 
 export default function StationsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredStations = mockStations.filter(
@@ -43,15 +42,11 @@ export default function StationsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+      <Sidebar />
       <div className="flex-1 min-w-0 transition-all duration-300">
         <Header
           title="จัดการจุดจอด"
           breadcrumbs={["หน้าหลัก", "จัดการจุดจอด"]}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <main className="p-4 sm:p-6">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

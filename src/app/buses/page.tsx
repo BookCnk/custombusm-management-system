@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Header } from "../components/Header";
+import CustomSelect from "../components/CustomSelect";
 import {
   Bus,
   Plus,
@@ -15,6 +16,7 @@ import {
   Eye,
   Save,
   Grid3X3,
+  Copy,
 } from "lucide-react";
 
 // Types for seat layout
@@ -29,10 +31,11 @@ type SeatType =
 interface SeatLayout {
   totalRows: number;
   seatsPerRow: number;
-  aisleAfter: number; // After which seat number is the aisle (e.g., 2 means seats 1,2 | aisle | 3,4)
+  aisleAfter: number;
   totalSeats: number;
-  hasBackRow: boolean; // Extra seats at the back
+  hasBackRow: boolean;
   backRowSeats: number;
+  customSeatLabels?: Record<string, string>; // Custom labels for seats (e.g., {"A1": "VIP1", "B2": "VIP2"})
 }
 
 interface BusData {
@@ -47,39 +50,59 @@ interface BusData {
 // Generate seat layout preview data
 const generateSeats = (
   layout: SeatLayout,
-): { id: string; type: SeatType; label: string }[][] => {
-  const rows: { id: string; type: SeatType; label: string }[][] = [];
+): { id: string; type: SeatType; label: string; originalLabel: string }[][] => {
+  const rows: {
+    id: string;
+    type: SeatType;
+    label: string;
+    originalLabel: string;
+  }[][] = [];
+  const customLabels = layout.customSeatLabels || {};
 
   // Driver row
   rows.push([
-    { id: "driver", type: "driver", label: "คนขับ" },
-    { id: "door", type: "door", label: "ทางเข้า" },
+    { id: "driver", type: "driver", label: "คนขับ", originalLabel: "คนขับ" },
+    { id: "door", type: "door", label: "ทางเข้า", originalLabel: "ทางเข้า" },
     ...Array(layout.seatsPerRow - 2)
       .fill(null)
       .map((_, i) => ({
         id: `aisle-top-${i}`,
         type: "aisle" as SeatType,
         label: "",
+        originalLabel: "",
       })),
   ]);
 
   // Regular seats
   for (let row = 1; row <= layout.totalRows; row++) {
-    const rowSeats: { id: string; type: SeatType; label: string }[] = [];
+    const rowSeats: {
+      id: string;
+      type: SeatType;
+      label: string;
+      originalLabel: string;
+    }[] = [];
     let seatNum = (row - 1) * (layout.seatsPerRow - 1) + 1;
 
     for (let col = 1; col <= layout.seatsPerRow; col++) {
       if (col === layout.aisleAfter + 1) {
-        rowSeats.push({ id: `aisle-${row}-${col}`, type: "aisle", label: "" });
+        rowSeats.push({
+          id: `aisle-${row}-${col}`,
+          type: "aisle",
+          label: "",
+          originalLabel: "",
+        });
       } else {
         const colLabel =
           col <= layout.aisleAfter
             ? String.fromCharCode(65 + col - 1) // A, B, C...
             : String.fromCharCode(65 + col - 2); // Skip aisle letter
+        const originalLabel = `${colLabel}${row}`;
+        const customLabel = customLabels[originalLabel];
         rowSeats.push({
           id: `seat-${row}-${col}`,
           type: "available",
-          label: `${colLabel}${row}`,
+          label: customLabel || originalLabel,
+          originalLabel,
         });
         seatNum++;
       }
@@ -89,20 +112,32 @@ const generateSeats = (
 
   // Back row if enabled
   if (layout.hasBackRow && layout.backRowSeats > 0) {
-    const backRow: { id: string; type: SeatType; label: string }[] = [];
-    const startNum = layout.totalRows * (layout.seatsPerRow - 1) + 1;
+    const backRow: {
+      id: string;
+      type: SeatType;
+      label: string;
+      originalLabel: string;
+    }[] = [];
 
     for (let i = 0; i < layout.backRowSeats; i++) {
       if (
         i === Math.floor(layout.backRowSeats / 2) &&
         layout.backRowSeats >= 4
       ) {
-        backRow.push({ id: `aisle-back`, type: "aisle", label: "" });
+        backRow.push({
+          id: `aisle-back`,
+          type: "aisle",
+          label: "",
+          originalLabel: "",
+        });
       }
+      const originalLabel = `${String.fromCharCode(65 + i)}${layout.totalRows + 1}`;
+      const customLabel = customLabels[originalLabel];
       backRow.push({
         id: `seat-back-${i}`,
         type: "available",
-        label: `${String.fromCharCode(65 + i)}${layout.totalRows + 1}`,
+        label: customLabel || originalLabel,
+        originalLabel,
       });
     }
     rows.push(backRow);
@@ -237,7 +272,15 @@ function Modal({
 }
 
 // Seat Layout Preview Component
-function SeatLayoutPreview({ layout }: { layout: SeatLayout }) {
+function SeatLayoutPreview({
+  layout,
+  isEditing = false,
+  onSeatLabelChange,
+}: {
+  layout: SeatLayout;
+  isEditing?: boolean;
+  onSeatLabelChange?: (originalLabel: string, newLabel: string) => void;
+}) {
   const seats = generateSeats(layout);
 
   return (
@@ -284,16 +327,33 @@ function SeatLayoutPreview({ layout }: { layout: SeatLayout }) {
                   return (
                     <div
                       key={seat.id}
-                      className="w-10 h-10 bg-gray-300 rounded flex items-center justify-center text-gray-600 text-xs">
+                      className="w-10 h-10 bg-gray-300 rounded flex items-center justify-center text-gray-600 text-xs"> 
                       🚪
+                    </div>
+                  );
+                }
+                if (isEditing && onSeatLabelChange) {
+                  // Editable seat with input
+                  return (
+                    <div key={seat.id} className="relative">
+                      <input
+                        type="text"
+                        value={seat.label}
+                        onChange={(e) =>
+                          onSeatLabelChange(seat.originalLabel, e.target.value)
+                        }
+                        className={`w-12 h-10 text-center text-xs font-medium rounded-lg border-2 transition-all bg-blue-500 text-white border-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400`}
+                        placeholder={seat.originalLabel}
+                        title={`ที่นั่ง ${seat.originalLabel}`}
+                      />
                     </div>
                   );
                 }
                 return (
                   <div
                     key={seat.id}
-                    className="w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-lg flex items-center justify-center text-white text-xs font-medium cursor-pointer transition-colors shadow-sm"
-                    title={`ที่นั่ง ${seat.label}`}>
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-xs font-medium shadow-sm transition-colors bg-blue-500 hover:bg-blue-600"
+                    title={`ที่นั่ง ${seat.originalLabel}${layout.customSeatLabels?.[seat.originalLabel] ? ` (แสดงเป็น: ${seat.label})` : ""}`}>
                     {seat.label}
                   </div>
                 );
@@ -311,19 +371,34 @@ function SeatLayoutPreview({ layout }: { layout: SeatLayout }) {
             <p className="text-sm text-gray-500">ที่นั่งทั้งหมด</p>
           </div>
           <div className="bg-white rounded-lg p-3 shadow-sm">
-            <p className="text-2xl font-bold text-gray-700">
-              {layout.totalRows}
+            <p className="text-2xl font-bold text-purple-600">
+              {Object.keys(layout.customSeatLabels || {}).length}
             </p>
-            <p className="text-sm text-gray-500">จำนวนแถว</p>
+            <p className="text-sm text-gray-500">ป้ายชื่อกำหนดเอง</p>
           </div>
         </div>
+
+        {isEditing && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-gray-600">
+            <p className="font-medium text-blue-900 mb-1">💡 วิธีใช้:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>คลิกที่ช่องที่นั่งแล้วพิมพ์ชื่อใหม่</li>
+              <li>
+                ปล่อยว่างเพื่อใช้ชื่อเริ่มต้น (
+                {seats[1]?.find((s) => s.type === "available")?.originalLabel ||
+                  "A1"}
+                )
+              </li>
+              <li>ที่นั่งสีม่วง = มีชื่อกำหนดเอง</li>
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function BusesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [buses, setBuses] = useState<BusData[]>(mockBuses);
   const [selectedBus, setSelectedBus] = useState<BusData | null>(null);
@@ -434,18 +509,43 @@ export default function BusesPage() {
     }
   };
 
+  const handleDuplicate = (bus: BusData) => {
+    const newBus: BusData = {
+      ...bus,
+      id: Math.max(...buses.map((b) => b.id), 0) + 1,
+      busNumber: `${bus.busNumber} (copy)`,
+    };
+    setBuses([...buses, newBus]);
+  };
+
+  const handleSeatLabelChange = (originalLabel: string, newLabel: string) => {
+    setFormData((prev) => {
+      const currentLabels = prev.layout?.customSeatLabels || {};
+      const updatedLabels = { ...currentLabels };
+
+      if (newLabel.trim() === "" || newLabel === originalLabel) {
+        // Remove custom label if empty or same as original
+        delete updatedLabels[originalLabel];
+      } else {
+        // Set custom label
+        updatedLabels[originalLabel] = newLabel.trim();
+      }
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout!,
+          customSeatLabels: updatedLabels,
+        },
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+      <Sidebar />
       <div className="flex-1 min-w-0 transition-all duration-300">
-        <Header
-          title="จัดการรถบัส"
-          breadcrumbs={["หน้าหลัก", "จัดการรถบัส"]}
-          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
+        <Header title="จัดการรถบัส" breadcrumbs={["หน้าหลัก", "จัดการรถบัส"]} />
         <main className="p-4 sm:p-6">
           {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -486,6 +586,12 @@ export default function BusesPage() {
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="ดูผังที่นั่ง">
                       <LayoutGrid size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDuplicate(bus)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="คัดลอก">
+                      <Copy size={18} />
                     </button>
                     <button
                       onClick={() => handleEdit(bus)}
@@ -611,34 +717,36 @@ export default function BusesPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ประเภทรถ
               </label>
-              <select
-                value={formData.type}
-                onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value })
+              <CustomSelect
+                value={formData.type || "มาตรฐาน"}
+                onChange={(value) =>
+                  setFormData({ ...formData, type: value as string })
                 }
-                className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="มาตรฐาน">มาตรฐาน</option>
-                <option value="VIP">VIP</option>
-                <option value="มินิบัส">มินิบัส</option>
-              </select>
+                options={[
+                  { value: "มาตรฐาน", label: "มาตรฐาน" },
+                  { value: "VIP", label: "VIP" },
+                  { value: "มินิบัส", label: "มินิบัส" },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 สถานะ
               </label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
+              <CustomSelect
+                value={formData.status || "active"}
+                onChange={(value) =>
                   setFormData({
                     ...formData,
-                    status: e.target.value as "active" | "maintenance",
+                    status: value as "active" | "maintenance",
                   })
                 }
-                className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="active">พร้อมใช้งาน</option>
-                <option value="maintenance">ซ่อมบำรุง</option>
-              </select>
+                options={[
+                  { value: "active", label: "พร้อมใช้งาน" },
+                  { value: "maintenance", label: "ซ่อมบำรุง" },
+                ]}
+              />
             </div>
 
             <hr className="border-gray-200" />
@@ -687,63 +795,6 @@ export default function BusesPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ทางเดินอยู่ระหว่างที่นั่ง (หมายเลข)
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={(formData.layout?.seatsPerRow || 4) - 1}
-                value={formData.layout?.aisleAfter}
-                onChange={(e) =>
-                  updateLayoutField("aisleAfter", parseInt(e.target.value) || 1)
-                }
-                className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                เช่น ค่า 2 หมายถึง ทางเดินอยู่ระหว่างที่นั่ง 2 และ 3
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="hasBackRow"
-                checked={formData.layout?.hasBackRow}
-                onChange={(e) =>
-                  updateLayoutField("hasBackRow", e.target.checked)
-                }
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label
-                htmlFor="hasBackRow"
-                className="text-sm font-medium text-gray-700">
-                มีแถวที่นั่งพิเศษด้านหลัง
-              </label>
-            </div>
-
-            {formData.layout?.hasBackRow && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  จำนวนที่นั่งแถวหลัง
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={formData.layout?.backRowSeats}
-                  onChange={(e) =>
-                    updateLayoutField(
-                      "backRowSeats",
-                      parseInt(e.target.value) || 0,
-                    )
-                  }
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
             <div className="bg-blue-50 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-blue-900">
@@ -765,12 +816,18 @@ export default function BusesPage() {
             </button>
           </div>
 
-          {/* Right: Preview */}
+          {/* Right: Preview with editable seat names */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              ตัวอย่างผังที่นั่ง
+              ตัวอย่างผังที่นั่ง (คลิกที่ที่นั่งเพื่อแก้ไขชื่อ)
             </label>
-            {formData.layout && <SeatLayoutPreview layout={formData.layout} />}
+            {formData.layout && (
+              <SeatLayoutPreview
+                layout={formData.layout}
+                isEditing={true}
+                onSeatLabelChange={handleSeatLabelChange}
+              />
+            )}
           </div>
         </div>
       </Modal>

@@ -11,7 +11,7 @@ import {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const stationId = parsePositiveInt(id);
@@ -38,7 +38,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const stationId = parsePositiveInt(id);
@@ -98,10 +98,7 @@ export async function PATCH(
       return jsonError("Route not found", 404);
     }
     if (code === "P2002") {
-      return jsonError(
-        "stopOrder already exists for this route",
-        409,
-      );
+      return jsonError("stopOrder already exists for this route", 409);
     }
 
     return jsonError("Failed to update station", 500);
@@ -110,7 +107,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const stationId = parsePositiveInt(id);
@@ -132,7 +129,18 @@ export async function DELETE(
       return jsonError("Station not found", 404);
     }
     if (code === "P2003") {
-      return jsonError("Cannot delete station with existing bookings", 409);
+      // Cannot delete due to existing bookings - mark as inactive instead
+      try {
+        await prisma.routeStation.update({
+          where: { id: stationId },
+          data: { stopOrder: -1 },
+        });
+        return NextResponse.json({
+          message: "Station marked as inactive due to existing bookings",
+        });
+      } catch {
+        return jsonError("Failed to mark station as inactive", 500);
+      }
     }
 
     return jsonError("Failed to delete station", 500);

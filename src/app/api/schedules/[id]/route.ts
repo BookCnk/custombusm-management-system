@@ -69,7 +69,7 @@ function parseScheduleUpdatePayload(body: unknown) {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const scheduleId = parsePositiveInt(id);
@@ -96,7 +96,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const scheduleId = parsePositiveInt(id);
@@ -127,7 +127,10 @@ export async function PATCH(
       return jsonError("Schedule not found", 404);
     }
     if (code === "P2002") {
-      return jsonError("This bus already has a schedule at that date and time", 409);
+      return jsonError(
+        "This bus already has a schedule at that date and time",
+        409,
+      );
     }
     if (code === "P2003") {
       return jsonError("Bus or Route not found", 404);
@@ -139,7 +142,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const scheduleId = parsePositiveInt(id);
@@ -149,6 +152,11 @@ export async function DELETE(
   }
 
   try {
+    // Delete related bookings first
+    await prisma.booking.deleteMany({
+      where: { scheduleId },
+    });
+
     await prisma.schedule.delete({
       where: { id: scheduleId },
     });

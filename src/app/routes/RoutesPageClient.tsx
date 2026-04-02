@@ -30,14 +30,17 @@ export default function RoutesPageClient({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     routeName: "",
-    stationsInput: "",
+    stations: [""],
   });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editFormData, setEditFormData] = useState({
+  const [editFormData, setEditFormData] = useState<{
+    routeName: string;
+    stations: { id?: number; stationName: string }[];
+  }>({
     routeName: "",
-    stationsInput: "",
+    stations: [],
   });
   const skipInitialLoadRef = useRef(true);
 
@@ -106,13 +109,13 @@ export default function RoutesPageClient({
   }, [searchQuery]);
 
   const handleOpenCreateModal = () => {
-    setFormData({ routeName: "", stationsInput: "" });
+    setFormData({ routeName: "", stations: [""] });
     setIsCreateModalOpen(true);
   };
 
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);
-    setFormData({ routeName: "", stationsInput: "" });
+    setFormData({ routeName: "", stations: [""] });
   };
 
   const handleSubmitCreate = async (e: React.FormEvent) => {
@@ -124,14 +127,18 @@ export default function RoutesPageClient({
       return;
     }
 
-    const stations = formData.stationsInput
-      .split(",")
+    const stations = formData.stations
       .map((name) => name.trim())
       .filter(Boolean)
       .map((stationName, index) => ({
         stationName,
         stopOrder: index + 1,
       }));
+
+    if (stations.length === 0) {
+      alert("กรุณาเพิ่มอย่างน้อย 1 จุดจอด");
+      return;
+    }
 
     try {
       await apiRequest("/api/routes", {
@@ -154,7 +161,10 @@ export default function RoutesPageClient({
     setSelectedRoute(route);
     setEditFormData({
       routeName: route.routeName,
-      stationsInput: route.stations.map((s) => s.stationName).join(", "),
+      stations: route.stations.map((s) => ({
+        id: s.id,
+        stationName: s.stationName,
+      })),
     });
     setIsEditModalOpen(true);
   };
@@ -162,7 +172,7 @@ export default function RoutesPageClient({
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
     setSelectedRoute(null);
-    setEditFormData({ routeName: "", stationsInput: "" });
+    setEditFormData({ routeName: "", stations: [] });
   };
 
   const handleSubmitEdit = async (e: React.FormEvent) => {
@@ -175,14 +185,21 @@ export default function RoutesPageClient({
       return;
     }
 
-    const stations = editFormData.stationsInput
-      .split(",")
-      .map((name) => name.trim())
-      .filter(Boolean)
-      .map((stationName, index) => ({
-        stationName,
+    const stations = editFormData.stations
+      .map((s, index) => ({
+        ...(s.id && s.id > 0 ? { id: s.id } : {}),
+        stationName: s.stationName.trim(),
         stopOrder: index + 1,
-      }));
+      }))
+      .filter((s) => s.stationName !== "");
+
+    // Debug logging
+    console.log("Submitting stations:", JSON.stringify(stations, null, 2));
+
+    if (stations.length === 0) {
+      alert("กรุณาเพิ่มอย่างน้อย 1 จุดจอด");
+      return;
+    }
 
     try {
       await apiRequest(`/api/routes/${selectedRoute.id}`, {
@@ -378,22 +395,81 @@ export default function RoutesPageClient({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  จุดจอด (คั่นด้วยเครื่องหมาย ,)
+                  จุดจอด
                 </label>
-                <textarea
-                  value={editFormData.stationsInput}
-                  onChange={(e) =>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {editFormData.stations.map((station, index) => (
+                    <div
+                      key={station.id ?? `new-${index}`}
+                      className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500 w-8">
+                        {index + 1}.
+                      </span>
+                      <input
+                        type="text"
+                        value={station.stationName}
+                        onChange={(e) => {
+                          const newStations = [...editFormData.stations];
+                          newStations[index] = {
+                            ...newStations[index],
+                            stationName: e.target.value,
+                          };
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            stations: newStations,
+                          }));
+                          // eslint-disable-next-line no-console
+                          console.log(
+                            "API - stationsToUpdate:",
+                            JSON.stringify(newStations, null, 2),
+                          );
+                          // eslint-disable-next-line no-console
+                          console.log(
+                            "API - existingStations:",
+                            JSON.stringify(
+                              editFormData.stations.map((s) => ({
+                                id: s.id,
+                                name: s.stationName,
+                              })),
+                              null,
+                              2,
+                            ),
+                          );
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder={`จุดจอดที่ ${index + 1}`}
+                      />
+                      {editFormData.stations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newStations = editFormData.stations.filter(
+                              (_, i) => i !== index,
+                            );
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              stations: newStations,
+                            }));
+                          }}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
                     setEditFormData((prev) => ({
                       ...prev,
-                      stationsInput: e.target.value,
+                      stations: [...prev.stations, { stationName: "" }],
                     }))
                   }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
-                  placeholder="เช่น โคราช, ปากช่อง, กรุงเทพ"
-                />
-                <p className="text-xs text-gray-500 mt-1.5">
-                  ระบุชื่อจุดจอดคั่นด้วยเครื่องหมายลูกน้ำ จะเรียงลำดับตามที่ระบุ
-                </p>
+                  className="mt-3 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  <Plus size={16} />
+                  เพิ่มจุดจอด
+                </button>
               </div>
               <div className="flex gap-3 pt-4">
                 <button
@@ -487,22 +563,59 @@ export default function RoutesPageClient({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  จุดจอด (คั่นด้วยเครื่องหมาย ,)
+                  จุดจอด
                 </label>
-                <textarea
-                  value={formData.stationsInput}
-                  onChange={(e) =>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {formData.stations.map((station, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500 w-8">
+                        {index + 1}.
+                      </span>
+                      <input
+                        type="text"
+                        value={station}
+                        onChange={(e) => {
+                          const newStations = [...formData.stations];
+                          newStations[index] = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            stations: newStations,
+                          }));
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder={`จุดจอดที่ ${index + 1}`}
+                      />
+                      {formData.stations.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newStations = formData.stations.filter(
+                              (_, i) => i !== index,
+                            );
+                            setFormData((prev) => ({
+                              ...prev,
+                              stations: newStations,
+                            }));
+                          }}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
                     setFormData((prev) => ({
                       ...prev,
-                      stationsInput: e.target.value,
+                      stations: [...prev.stations, ""],
                     }))
                   }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
-                  placeholder="เช่น โคราช, ปากช่อง, กรุงเทพ"
-                />
-                <p className="text-xs text-gray-500 mt-1.5">
-                  ระบุชื่อจุดจอดคั่นด้วยเครื่องหมายลูกน้ำ จะเรียงลำดับตามที่ระบุ
-                </p>
+                  className="mt-3 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  <Plus size={16} />
+                  เพิ่มจุดจอด
+                </button>
               </div>
               <div className="flex gap-3 pt-4">
                 <button

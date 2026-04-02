@@ -1,4 +1,8 @@
-import { routeListInclude, scheduleListInclude, stationInclude } from "@/app/api/_lib/includes";
+import {
+  routeListInclude,
+  scheduleListInclude,
+  stationInclude,
+} from "@/app/api/_lib/includes";
 import { prisma } from "@/lib/prisma";
 import {
   mapBus,
@@ -41,7 +45,14 @@ function getDateRange(date: string) {
 }
 
 export function getCurrentDateInputValue() {
-  return toDateInputValue(new Date().toISOString());
+  // Use ICT (UTC+7) timezone
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const ictTime = new Date(utc + 7 * 3600000); // UTC+7
+  const year = ictTime.getFullYear();
+  const month = String(ictTime.getMonth() + 1).padStart(2, "0");
+  const day = String(ictTime.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export async function getInitialBuses() {
@@ -85,26 +96,27 @@ export async function getInitialStations(query = "") {
       orderBy: { routeName: "asc" },
     }),
     prisma.routeStation.findMany({
-      where: q
-        ? {
-            OR: [
-              {
-                stationName: {
+      where: {
+        stopOrder: { gt: 0 },
+        ...(q && {
+          OR: [
+            {
+              stationName: {
+                contains: q,
+                mode: "insensitive",
+              },
+            },
+            {
+              route: {
+                routeName: {
                   contains: q,
                   mode: "insensitive",
                 },
               },
-              {
-                route: {
-                  routeName: {
-                    contains: q,
-                    mode: "insensitive",
-                  },
-                },
-              },
-            ],
-          }
-        : undefined,
+            },
+          ],
+        }),
+      },
       include: stationInclude,
       orderBy: [{ routeId: "asc" }, { stopOrder: "asc" }],
     }),
@@ -112,7 +124,9 @@ export async function getInitialStations(query = "") {
 
   return {
     routes: routes.map((item) => mapRoute(item)) satisfies RouteData[],
-    stations: stations.map((item) => buildStationRow(item)) satisfies StationRow[],
+    stations: stations.map((item) =>
+      buildStationRow(item),
+    ) satisfies StationRow[],
   };
 }
 
@@ -156,6 +170,8 @@ export async function getInitialSchedulesPageData(date: string) {
   return {
     buses: buses.map((item) => mapBus(item)) satisfies BusData[],
     routes: routes.map((item) => mapRoute(item)) satisfies RouteData[],
-    schedules: schedules.map((item) => mapSchedule(item)) satisfies ScheduleData[],
+    schedules: schedules.map((item) =>
+      mapSchedule(item),
+    ) satisfies ScheduleData[],
   };
 }

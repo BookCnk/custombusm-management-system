@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     const stations = await prisma.routeStation.findMany({
       where: {
+        stopOrder: { gt: 0 },
         ...(routeId && { routeId }),
         ...(q && {
           OR: [
@@ -68,10 +69,7 @@ export async function POST(request: NextRequest) {
   const stopOrder = normalizePositiveInt(payload.stopOrder);
 
   if (!routeId || !stationName || !stopOrder) {
-    return jsonError(
-      "routeId, stationName, and stopOrder are required",
-      400,
-    );
+    return jsonError("routeId, stationName, and stopOrder are required", 400);
   }
 
   try {
@@ -92,12 +90,48 @@ export async function POST(request: NextRequest) {
       return jsonError("Route not found", 404);
     }
     if (code === "P2002") {
-      return jsonError(
-        "stopOrder already exists for this route",
-        409,
-      );
+      return jsonError("stopOrder already exists for this route", 409);
     }
 
     return jsonError("Failed to create station", 500);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const stationId = parseOptionalPositiveInt(searchParams.get("stationId"));
+
+  if (!stationId) {
+    return jsonError("stationId must be a positive integer", 400);
+  }
+
+  try {
+    await prisma.routeStation.delete({
+      where: { id: stationId },
+    });
+
+    return NextResponse.json({ message: "Station deleted successfully" });
+  } catch (error) {
+    const code = prismaErrorCode(error);
+
+    if (code === "P2025") {
+      return jsonError("Station not found", 404);
+    }
+    if (code === "P2003") {
+      // Cannot delete due to existing bookings - mark as inactive instead
+      try {
+        await prisma.routeStation.update({
+          where: { id: stationId },
+          data: { stopOrder: -1 },
+        });
+        return NextResponse.json({
+          message: "Station marked as inactive due to existing bookings",
+        });
+      } catch {
+        return jsonError("Failed to mark station as inactive", 500);
+      }
+    }
+
+    return jsonError("Failed to delete station", 500);
   }
 }

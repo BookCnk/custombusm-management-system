@@ -224,12 +224,15 @@ export default function StationsPageClient({
     if (!selectedStation) return;
 
     try {
-      await apiRequest(`/api/stations/${selectedStation.id}`, {
+      console.log("Deleting station:", selectedStation.id);
+      const result = await apiRequest(`/api/stations/${selectedStation.id}`, {
         method: "DELETE",
       });
+      console.log("Delete result:", result);
       await loadStations();
       handleCloseDeleteModal();
     } catch (error) {
+      console.error("Delete error:", error);
       const message =
         error instanceof Error ? error.message : "ลบจุดจอดไม่สำเร็จ";
       alert(message);

@@ -237,7 +237,11 @@ export default function SchedulesPageClient({
 
   const handleCreate = () => {
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    // Convert to ICT (UTC+7)
+    const ictTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Bangkok" }),
+    );
+    const currentTime = `${ictTime.getHours().toString().padStart(2, "0")}:${ictTime.getMinutes().toString().padStart(2, "0")}`;
 
     setFormData({
       busId: "",
@@ -379,15 +383,17 @@ export default function SchedulesPageClient({
   };
 
   const nextDate = () => {
-    const date = new Date(selectedDate);
-    date.setDate(date.getDate() + 1);
-    setSelectedDate(date.toISOString().split("T")[0]);
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day + 1);
+    const newDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    setSelectedDate(newDateStr);
   };
 
   const prevDate = () => {
-    const date = new Date(selectedDate);
-    date.setDate(date.getDate() - 1);
-    setSelectedDate(date.toISOString().split("T")[0]);
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day - 1);
+    const newDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    setSelectedDate(newDateStr);
   };
 
   const scheduleForView = viewScheduleDetail || selectedSchedule;
@@ -540,7 +546,7 @@ export default function SchedulesPageClient({
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

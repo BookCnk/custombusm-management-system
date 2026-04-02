@@ -21,12 +21,14 @@ export const busDetailInclude = Prisma.validator<Prisma.BusInclude>()({
 
 export const routeListInclude = Prisma.validator<Prisma.RouteInclude>()({
   stations: {
+    where: { stopOrder: { gt: 0 } },
     orderBy: { stopOrder: "asc" },
   },
 });
 
 export const routeDetailInclude = Prisma.validator<Prisma.RouteInclude>()({
   stations: {
+    where: { stopOrder: { gt: 0 } },
     orderBy: { stopOrder: "asc" },
   },
   schedules: {
@@ -51,6 +53,7 @@ export const scheduleListInclude = Prisma.validator<Prisma.ScheduleInclude>()({
   route: {
     include: {
       stations: {
+        where: { stopOrder: { gt: 0 } },
         orderBy: { stopOrder: "asc" },
       },
     },
@@ -71,12 +74,13 @@ export const scheduleListInclude = Prisma.validator<Prisma.ScheduleInclude>()({
   },
 });
 
-export const scheduleDetailInclude =
-  Prisma.validator<Prisma.ScheduleInclude>()({
+export const scheduleDetailInclude = Prisma.validator<Prisma.ScheduleInclude>()(
+  {
     bus: true,
     route: {
       include: {
         stations: {
+          where: { stopOrder: { gt: 0 } },
           orderBy: { stopOrder: "asc" },
         },
       },
@@ -93,7 +97,8 @@ export const scheduleDetailInclude =
         bookings: true,
       },
     },
-  });
+  },
+);
 
 export const bookingInclude = Prisma.validator<Prisma.BookingInclude>()({
   schedule: {
@@ -102,6 +107,7 @@ export const bookingInclude = Prisma.validator<Prisma.BookingInclude>()({
       route: {
         include: {
           stations: {
+            where: { stopOrder: { gt: 0 } },
             orderBy: { stopOrder: "asc" },
           },
         },
@@ -117,6 +123,7 @@ export const bookingRouteValidationInclude =
     route: {
       include: {
         stations: {
+          where: { stopOrder: { gt: 0 } },
           orderBy: { stopOrder: "asc" },
         },
       },

@@ -21,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${kanit.variable} h-full antialiased`}>
-      <body className={`${kanit.className} min-h-full flex flex-col`}>
+      <body
+        className={`${kanit.className} min-h-full flex flex-col`}
+        suppressHydrationWarning>
         <SidebarProvider>{children}</SidebarProvider>
       </body>
     </html>

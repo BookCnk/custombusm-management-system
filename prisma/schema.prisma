@@ -6,73 +6,92 @@ datasource db {
   provider = "postgresql"
 }
 
-// แอดมินคนเดียว ไม่ต้องมีตาราง Member อื่น
+enum BusStatus {
+  active
+  maintenance
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
 model User {
   id       Int    @id @default(autoincrement())
   username String @unique
   password String
 }
 
-// ข้อมูลรถบัส (เช่น เบอร์รถ, ประเภทรถ)
 model Bus {
-  id          Int        @id @default(autoincrement())
-  busNumber   String     @unique // เช่น "815-1", "VIP-01"
-  totalSeats  Int        @default(40)
-  schedules   Schedule[]
+  id         Int        @id @default(autoincrement())
+  busNumber  String     @unique
+  totalSeats Int        @default(40)
+  type       String     @default("มาตรฐาน")
+  status     BusStatus  @default(active)
+  layout     Json?
+  schedules  Schedule[]
+
+  @@index([status])
+  @@index([type])
 }
 
-// เส้นทางหลัก (เช่น ราชสีมา - ระยอง)
 model Route {
   id        Int            @id @default(autoincrement())
   routeName String
   stations  RouteStation[]
   schedules Schedule[]
+
+  @@index([routeName])
 }
 
-// จุดจอดรายทาง (แอดมิน Custom ลำดับเองได้ เช่น ปักธงชัย, กบินทร์, บ่อวิน)
 model RouteStation {
   id          Int    @id @default(autoincrement())
   routeId     Int
   stationName String
-  stopOrder   Int    // ลำดับที่ 1, 2, 3...
+  stopOrder   Int
 
-  route       Route     @relation(fields: [routeId], references: [id])
-  pickups     Booking[] @relation("PickupStation")
-  dropoffs    Booking[] @relation("DropoffStation")
+  route    Route     @relation(fields: [routeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  pickups  Booking[] @relation("PickupStation")
+  dropoffs Booking[] @relation("DropoffStation")
+
+  @@unique([routeId, stopOrder])
 }
 
-// รอบการวิ่งในแต่ละวัน
 model Schedule {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   busId         Int
   routeId       Int
   departureDate DateTime
-  departureTime String    // เช่น "08:30"
-  
-  bus           Bus       @relation(fields: [busId], references: [id])
-  route         Route     @relation(fields: [routeId], references: [id])
-  bookings      Booking[]
+  departureTime String
+
+  bus      Bus       @relation(fields: [busId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  route    Route     @relation(fields: [routeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bookings Booking[]
+
+  @@unique([busId, departureDate, departureTime])
+  @@index([departureDate, departureTime])
+  @@index([routeId, departureDate])
+  @@index([busId, departureDate])
 }
 
-// การจองที่นั่ง (แอดมินเป็นคนคีย์ข้อมูลเองทั้งหมด)
 model Booking {
-  id               Int      @id @default(autoincrement())
+  id               Int           @id @default(autoincrement())
   scheduleId       Int
-  seatNumber       String   // เช่น "A1", "B2"
-  passengerName    String?  // ชื่อลูกค้า
+  seatNumber       String
+  passengerName    String?
   passengerPhone   String?
-  
-  // จุดขึ้น-ลง ที่ระบุแยกรายที่นั่งตามที่คุณต้องการ
   pickupStationId  Int
   dropoffStationId Int
-  
-  price            Float    @default(0.0)
-  status           String   @default("CONFIRMED") // CONFIRMED, CANCELLED
-  createdAt        DateTime @default(now())
+  price            Float         @default(0.0)
+  status           BookingStatus @default(CONFIRMED)
+  createdAt        DateTime      @default(now())
 
-  schedule         Schedule     @relation(fields: [scheduleId], references: [id])
-  pickupStation    RouteStation @relation("PickupStation", fields: [pickupStationId], references: [id])
-  dropoffStation   RouteStation @relation("DropoffStation", fields: [dropoffStationId], references: [id])
+  schedule       Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  pickupStation  RouteStation @relation("PickupStation", fields: [pickupStationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  dropoffStation RouteStation @relation("DropoffStation", fields: [dropoffStationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  @@unique([scheduleId, seatNumber]) // ป้องกันการจองที่นั่งซ้ำในรอบเดียวกัน
+  @@unique([scheduleId, seatNumber])
+  @@index([scheduleId, createdAt])
+  @@index([passengerPhone])
+  @@index([status])
 }

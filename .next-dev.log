@@ -1,0 +1,24 @@
+
+> my-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.38:3000
+- Environments: .env.local, .env
+✓ Ready in 584ms
+Creating turbopack project { dir: 'D:\\custombusm-management-system', testMode: true }
+
+ GET /routes 200 in 3.3s (next.js: 2.9s, application-code: 424ms)
+ GET /api/routes 200 in 951ms (next.js: 150ms, application-code: 800ms)
+ GET /api/routes 200 in 233ms (next.js: 3ms, application-code: 229ms)
+ GET /api/buses 200 in 602ms (next.js: 31ms, application-code: 571ms)
+ GET /api/stations 200 in 729ms (next.js: 43ms, application-code: 686ms)
+ GET /api/schedules 200 in 786ms (next.js: 27ms, application-code: 759ms)
+[browser] Image with src "https://i.pravatar.cc/150?img=12" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /api/test-db 200 in 141ms (next.js: 29ms, application-code: 113ms)
+ GET /api/bookings 200 in 1160ms (next.js: 732ms, application-code: 428ms)
+ GET /api/test-db 200 in 535ms (next.js: 4ms, application-code: 531ms)
+ GET /api/test-db 200 in 112ms (next.js: 3ms, application-code: 108ms)
+[?25h

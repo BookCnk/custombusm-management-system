@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Sidebar } from "../components/Sidebar";
-import { Header } from "../components/Header";
-import CustomSelect from "../components/CustomSelect";
+import { useEffect, useState } from "react";
 import {
   Bus,
   Plus,
@@ -13,13 +10,22 @@ import {
   Users,
   LayoutGrid,
   X,
-  Eye,
   Save,
   Grid3X3,
   Copy,
 } from "lucide-react";
 
-// Types for seat layout
+import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
+import CustomSelect from "../components/CustomSelect";
+import { apiRequest } from "@/lib/api-client";
+import {
+  createDefaultSeatLayout,
+  mapBus,
+  type BusData,
+  type SeatLayout,
+} from "@/lib/bus-management";
+
 type SeatType =
   | "available"
   | "booked"
@@ -28,42 +34,33 @@ type SeatType =
   | "door"
   | "aisle";
 
-interface SeatLayout {
-  totalRows: number;
-  seatsPerRow: number;
-  aisleAfter: number;
-  totalSeats: number;
-  hasBackRow: boolean;
-  backRowSeats: number;
-  customSeatLabels?: Record<string, string>; // Custom labels for seats (e.g., {"A1": "VIP1", "B2": "VIP2"})
+type SeatPreviewItem = {
+  id: string;
+  type: SeatType;
+  label: string;
+  originalLabel: string;
+};
+
+const defaultBusType = "มาตรฐาน";
+
+function createInitialFormData(): Partial<BusData> {
+  return {
+    busNumber: "",
+    type: defaultBusType,
+    status: "active",
+    totalSeats: 40,
+    layout: createDefaultSeatLayout(40),
+  };
 }
 
-interface BusData {
-  id: number;
-  busNumber: string;
-  totalSeats: number;
-  type: string;
-  status: "active" | "maintenance";
-  layout: SeatLayout;
-}
-
-// Generate seat layout preview data
-const generateSeats = (
-  layout: SeatLayout,
-): { id: string; type: SeatType; label: string; originalLabel: string }[][] => {
-  const rows: {
-    id: string;
-    type: SeatType;
-    label: string;
-    originalLabel: string;
-  }[][] = [];
+function generateSeats(layout: SeatLayout): SeatPreviewItem[][] {
+  const rows: SeatPreviewItem[][] = [];
   const customLabels = layout.customSeatLabels || {};
 
-  // Driver row
   rows.push([
     { id: "driver", type: "driver", label: "คนขับ", originalLabel: "คนขับ" },
     { id: "door", type: "door", label: "ทางเข้า", originalLabel: "ทางเข้า" },
-    ...Array(layout.seatsPerRow - 2)
+    ...Array(Math.max(layout.seatsPerRow - 2, 0))
       .fill(null)
       .map((_, i) => ({
         id: `aisle-top-${i}`,
@@ -73,15 +70,8 @@ const generateSeats = (
       })),
   ]);
 
-  // Regular seats
   for (let row = 1; row <= layout.totalRows; row++) {
-    const rowSeats: {
-      id: string;
-      type: SeatType;
-      label: string;
-      originalLabel: string;
-    }[] = [];
-    let seatNum = (row - 1) * (layout.seatsPerRow - 1) + 1;
+    const rowSeats: SeatPreviewItem[] = [];
 
     for (let col = 1; col <= layout.seatsPerRow; col++) {
       if (col === layout.aisleAfter + 1) {
@@ -91,33 +81,29 @@ const generateSeats = (
           label: "",
           originalLabel: "",
         });
-      } else {
-        const colLabel =
-          col <= layout.aisleAfter
-            ? String.fromCharCode(65 + col - 1) // A, B, C...
-            : String.fromCharCode(65 + col - 2); // Skip aisle letter
-        const originalLabel = `${colLabel}${row}`;
-        const customLabel = customLabels[originalLabel];
-        rowSeats.push({
-          id: `seat-${row}-${col}`,
-          type: "available",
-          label: customLabel || originalLabel,
-          originalLabel,
-        });
-        seatNum++;
+        continue;
       }
+
+      const colLabel =
+        col <= layout.aisleAfter
+          ? String.fromCharCode(65 + col - 1)
+          : String.fromCharCode(65 + col - 2);
+      const originalLabel = `${colLabel}${row}`;
+      const customLabel = customLabels[originalLabel];
+
+      rowSeats.push({
+        id: `seat-${row}-${col}`,
+        type: "available",
+        label: customLabel || originalLabel,
+        originalLabel,
+      });
     }
+
     rows.push(rowSeats);
   }
 
-  // Back row if enabled
   if (layout.hasBackRow && layout.backRowSeats > 0) {
-    const backRow: {
-      id: string;
-      type: SeatType;
-      label: string;
-      originalLabel: string;
-    }[] = [];
+    const backRow: SeatPreviewItem[] = [];
 
     for (let i = 0; i < layout.backRowSeats; i++) {
       if (
@@ -125,14 +111,16 @@ const generateSeats = (
         layout.backRowSeats >= 4
       ) {
         backRow.push({
-          id: `aisle-back`,
+          id: "aisle-back",
           type: "aisle",
           label: "",
           originalLabel: "",
         });
       }
+
       const originalLabel = `${String.fromCharCode(65 + i)}${layout.totalRows + 1}`;
       const customLabel = customLabels[originalLabel];
+
       backRow.push({
         id: `seat-back-${i}`,
         type: "available",
@@ -140,91 +128,13 @@ const generateSeats = (
         originalLabel,
       });
     }
+
     rows.push(backRow);
   }
 
   return rows;
-};
+}
 
-const mockBuses: BusData[] = [
-  {
-    id: 1,
-    busNumber: "815-1",
-    totalSeats: 40,
-    type: "มาตรฐาน",
-    status: "active",
-    layout: {
-      totalRows: 10,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 40,
-      hasBackRow: false,
-      backRowSeats: 0,
-    },
-  },
-  {
-    id: 2,
-    busNumber: "815-2",
-    totalSeats: 40,
-    type: "มาตรฐาน",
-    status: "active",
-    layout: {
-      totalRows: 10,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 40,
-      hasBackRow: false,
-      backRowSeats: 0,
-    },
-  },
-  {
-    id: 3,
-    busNumber: "VIP-01",
-    totalSeats: 32,
-    type: "VIP",
-    status: "active",
-    layout: {
-      totalRows: 8,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 32,
-      hasBackRow: false,
-      backRowSeats: 0,
-    },
-  },
-  {
-    id: 4,
-    busNumber: "VIP-02",
-    totalSeats: 32,
-    type: "VIP",
-    status: "maintenance",
-    layout: {
-      totalRows: 8,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 32,
-      hasBackRow: false,
-      backRowSeats: 0,
-    },
-  },
-  {
-    id: 5,
-    busNumber: "815-3",
-    totalSeats: 44,
-    type: "มาตรฐาน",
-    status: "active",
-    layout: {
-      totalRows: 10,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 40,
-      hasBackRow: true,
-      backRowSeats: 4,
-    },
-  },
-];
-
-// Modal Component
 function Modal({
   isOpen,
   onClose,
@@ -271,7 +181,6 @@ function Modal({
   );
 }
 
-// Seat Layout Preview Component
 function SeatLayoutPreview({
   layout,
   isEditing = false,
@@ -286,7 +195,6 @@ function SeatLayoutPreview({
   return (
     <div className="bg-gray-50 rounded-xl p-6 overflow-x-auto">
       <div className="min-w-[300px] max-w-[500px] mx-auto">
-        {/* Legend */}
         <div className="flex items-center justify-center gap-4 mb-4 text-xs text-gray-600 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-6 h-6 bg-blue-500 rounded-lg" />
@@ -302,7 +210,6 @@ function SeatLayoutPreview({
           </div>
         </div>
 
-        {/* Seats Grid */}
         <div className="space-y-2">
           {seats.map((row, rowIndex) => (
             <div
@@ -310,9 +217,7 @@ function SeatLayoutPreview({
               className="flex items-center justify-center gap-1">
               {row.map((seat, colIndex) => {
                 if (seat.type === "aisle") {
-                  return (
-                    <div key={`${rowIndex}-${colIndex}`} className="w-8 h-10" />
-                  );
+                  return <div key={`${rowIndex}-${colIndex}`} className="w-8 h-10" />;
                 }
                 if (seat.type === "driver") {
                   return (
@@ -327,13 +232,12 @@ function SeatLayoutPreview({
                   return (
                     <div
                       key={seat.id}
-                      className="w-10 h-10 bg-gray-300 rounded flex items-center justify-center text-gray-600 text-xs"> 
+                      className="w-10 h-10 bg-gray-300 rounded flex items-center justify-center text-gray-600 text-xs">
                       🚪
                     </div>
                   );
                 }
                 if (isEditing && onSeatLabelChange) {
-                  // Editable seat with input
                   return (
                     <div key={seat.id} className="relative">
                       <input
@@ -342,13 +246,14 @@ function SeatLayoutPreview({
                         onChange={(e) =>
                           onSeatLabelChange(seat.originalLabel, e.target.value)
                         }
-                        className={`w-12 h-10 text-center text-xs font-medium rounded-lg border-2 transition-all bg-blue-500 text-white border-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400`}
+                        className="w-12 h-10 text-center text-xs font-medium rounded-lg border-2 transition-all bg-blue-500 text-white border-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400"
                         placeholder={seat.originalLabel}
                         title={`ที่นั่ง ${seat.originalLabel}`}
                       />
                     </div>
                   );
                 }
+
                 return (
                   <div
                     key={seat.id}
@@ -362,7 +267,6 @@ function SeatLayoutPreview({
           ))}
         </div>
 
-        {/* Stats */}
         <div className="mt-6 grid grid-cols-2 gap-3 text-center">
           <div className="bg-white rounded-lg p-3 shadow-sm">
             <p className="text-2xl font-bold text-blue-600">
@@ -380,7 +284,7 @@ function SeatLayoutPreview({
 
         {isEditing && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-gray-600">
-            <p className="font-medium text-blue-900 mb-1">💡 วิธีใช้:</p>
+            <p className="font-medium text-blue-900 mb-1">วิธีใช้:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>คลิกที่ช่องที่นั่งแล้วพิมพ์ชื่อใหม่</li>
               <li>
@@ -389,7 +293,7 @@ function SeatLayoutPreview({
                   "A1"}
                 )
               </li>
-              <li>ที่นั่งสีม่วง = มีชื่อกำหนดเอง</li>
+              <li>ที่นั่งที่มีชื่อกำหนดเองจะแสดงค่าที่แก้ไว้</li>
             </ul>
           </div>
         )}
@@ -400,26 +304,51 @@ function SeatLayoutPreview({
 
 export default function BusesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [buses, setBuses] = useState<BusData[]>(mockBuses);
+  const [buses, setBuses] = useState<BusData[]>([]);
   const [selectedBus, setSelectedBus] = useState<BusData | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [formData, setFormData] = useState<Partial<BusData>>(createInitialFormData);
 
-  // Form state for add/edit
-  const [formData, setFormData] = useState<Partial<BusData>>({
-    busNumber: "",
-    type: "มาตรฐาน",
-    status: "active",
-    layout: {
-      totalRows: 10,
-      seatsPerRow: 4,
-      aisleAfter: 2,
-      totalSeats: 40,
-      hasBackRow: false,
-      backRowSeats: 0,
-    },
-  });
+  const loadBuses = async () => {
+    try {
+      const data = await apiRequest<unknown[]>("/api/buses");
+      setBuses(data.map((item) => mapBus(item)));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "โหลดข้อมูลรถบัสไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const data = await apiRequest<unknown[]>("/api/buses");
+        if (cancelled) {
+          return;
+        }
+        setBuses(data.map((item) => mapBus(item)));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "โหลดข้อมูลรถบัสไม่สำเร็จ";
+        alert(message);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredBuses = buses.filter(
     (bus) =>
@@ -434,29 +363,24 @@ export default function BusesPage() {
 
   const handleEdit = (bus: BusData) => {
     setSelectedBus(bus);
-    setFormData(bus);
+    setFormData({
+      ...bus,
+      layout: {
+        ...bus.layout,
+        customSeatLabels: { ...(bus.layout.customSeatLabels || {}) },
+      },
+    });
     setIsEditModalOpen(true);
   };
 
   const handleAdd = () => {
-    setFormData({
-      busNumber: "",
-      type: "มาตรฐาน",
-      status: "active",
-      layout: {
-        totalRows: 10,
-        seatsPerRow: 4,
-        aisleAfter: 2,
-        totalSeats: 40,
-        hasBackRow: false,
-        backRowSeats: 0,
-      },
-    });
+    setSelectedBus(null);
+    setFormData(createInitialFormData());
     setIsAddModalOpen(true);
   };
 
   const calculateTotalSeats = (layout: SeatLayout): number => {
-    const regularSeats = layout.totalRows * (layout.seatsPerRow - 1);
+    const regularSeats = layout.totalRows * Math.max(layout.seatsPerRow - 1, 1);
     const backSeats = layout.hasBackRow ? layout.backRowSeats : 0;
     return regularSeats + backSeats;
   };
@@ -466,75 +390,132 @@ export default function BusesPage() {
     value: number | boolean,
   ) => {
     setFormData((prev) => {
-      const newLayout = { ...prev.layout!, [field]: value };
-      // Auto-calculate total seats
+      const currentLayout = prev.layout || createDefaultSeatLayout(prev.totalSeats || 40);
+      const nextLayout = {
+        ...currentLayout,
+        [field]: value,
+      } as SeatLayout;
+
       if (field !== "totalSeats") {
-        newLayout.totalSeats = calculateTotalSeats(newLayout as SeatLayout);
+        nextLayout.totalSeats = calculateTotalSeats(nextLayout);
       }
-      return { ...prev, layout: newLayout };
+
+      return {
+        ...prev,
+        totalSeats: nextLayout.totalSeats,
+        layout: nextLayout,
+      };
     });
   };
 
-  const handleSave = () => {
-    if (isAddModalOpen) {
-      const newBus: BusData = {
-        id: Math.max(...buses.map((b) => b.id)) + 1,
-        busNumber: formData.busNumber || "",
-        type: formData.type || "มาตรฐาน",
+  const closeFormModal = () => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    setSelectedBus(null);
+    setFormData(createInitialFormData());
+  };
+
+  const handleSave = async () => {
+    const layout = formData.layout || createDefaultSeatLayout(40);
+    const busNumber = formData.busNumber?.trim();
+
+    if (!busNumber) {
+      alert("กรุณากรอกหมายเลขรถ");
+      return;
+    }
+
+    try {
+      const payload = {
+        busNumber,
+        type: formData.type || defaultBusType,
         status: formData.status || "active",
-        totalSeats: formData.layout?.totalSeats || 40,
-        layout: formData.layout as SeatLayout,
+        totalSeats: layout.totalSeats,
+        layout,
       };
-      setBuses([...buses, newBus]);
-      setIsAddModalOpen(false);
-    } else if (isEditModalOpen && selectedBus) {
-      setBuses(
-        buses.map((bus) =>
-          bus.id === selectedBus.id
-            ? {
-                ...bus,
-                ...formData,
-                totalSeats: formData.layout?.totalSeats || bus.totalSeats,
-              }
-            : bus,
-        ),
-      );
-      setIsEditModalOpen(false);
+
+      if (isAddModalOpen) {
+        await apiRequest("/api/buses", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      } else if (isEditModalOpen && selectedBus) {
+        await apiRequest(`/api/buses/${selectedBus.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      closeFormModal();
+      await loadBuses();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "บันทึกข้อมูลรถบัสไม่สำเร็จ";
+      alert(message);
     }
   };
 
-  const handleDelete = (busId: number) => {
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบรถคันนี้?")) {
-      setBuses(buses.filter((b) => b.id !== busId));
+  const handleDelete = async (busId: number) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ที่จะลบรถคันนี้?")) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/buses/${busId}`, {
+        method: "DELETE",
+      });
+      await loadBuses();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "ลบรถบัสไม่สำเร็จ";
+      alert(message);
     }
   };
 
-  const handleDuplicate = (bus: BusData) => {
-    const newBus: BusData = {
-      ...bus,
-      id: Math.max(...buses.map((b) => b.id), 0) + 1,
-      busNumber: `${bus.busNumber} (copy)`,
-    };
-    setBuses([...buses, newBus]);
+  const handleDuplicate = async (bus: BusData) => {
+    const busNumber = window.prompt(
+      "หมายเลขรถของสำเนา",
+      `${bus.busNumber}-copy`,
+    );
+
+    if (!busNumber?.trim()) {
+      return;
+    }
+
+    try {
+      await apiRequest("/api/buses", {
+        method: "POST",
+        body: JSON.stringify({
+          busNumber: busNumber.trim(),
+          type: bus.type,
+          status: bus.status,
+          totalSeats: bus.totalSeats,
+          layout: bus.layout,
+        }),
+      });
+      await loadBuses();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "คัดลอกรถบัสไม่สำเร็จ";
+      alert(message);
+    }
   };
 
   const handleSeatLabelChange = (originalLabel: string, newLabel: string) => {
     setFormData((prev) => {
-      const currentLabels = prev.layout?.customSeatLabels || {};
+      const currentLayout = prev.layout || createDefaultSeatLayout(prev.totalSeats || 40);
+      const currentLabels = currentLayout.customSeatLabels || {};
       const updatedLabels = { ...currentLabels };
 
       if (newLabel.trim() === "" || newLabel === originalLabel) {
-        // Remove custom label if empty or same as original
         delete updatedLabels[originalLabel];
       } else {
-        // Set custom label
         updatedLabels[originalLabel] = newLabel.trim();
       }
 
       return {
         ...prev,
         layout: {
-          ...prev.layout!,
+          ...currentLayout,
           customSeatLabels: updatedLabels,
         },
       };
@@ -547,7 +528,6 @@ export default function BusesPage() {
       <div className="flex-1 min-w-0 transition-all duration-300">
         <Header title="จัดการรถบัส" breadcrumbs={["หน้าหลัก", "จัดการรถบัส"]} />
         <main className="p-4 sm:p-6">
-          {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="relative w-full sm:w-auto">
               <Search
@@ -570,7 +550,6 @@ export default function BusesPage() {
             </button>
           </div>
 
-          {/* Buses Grid */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
             {filteredBuses.map((bus) => (
               <div
@@ -588,7 +567,7 @@ export default function BusesPage() {
                       <LayoutGrid size={18} />
                     </button>
                     <button
-                      onClick={() => handleDuplicate(bus)}
+                      onClick={() => void handleDuplicate(bus)}
                       className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                       title="คัดลอก">
                       <Copy size={18} />
@@ -600,7 +579,7 @@ export default function BusesPage() {
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(bus.id)}
+                      onClick={() => void handleDelete(bus.id)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="ลบ">
                       <Trash2 size={18} />
@@ -612,7 +591,6 @@ export default function BusesPage() {
                 </h3>
                 <p className="text-sm text-gray-500">{bus.type}</p>
 
-                {/* Mini Seat Layout Preview */}
                 <div className="mt-3 bg-gray-50 rounded-lg p-2">
                   <div className="flex items-center justify-center gap-1 flex-wrap">
                     {generateSeats(bus.layout)
@@ -620,11 +598,11 @@ export default function BusesPage() {
                       .map((row, idx) => (
                         <div key={idx} className="flex gap-0.5">
                           {row
-                            .filter((s) => s.type === "available")
+                            .filter((seat) => seat.type === "available")
                             .slice(0, 4)
-                            .map((seat, sidx) => (
+                            .map((seat, seatIndex) => (
                               <div
-                                key={sidx}
+                                key={seatIndex}
                                 className="w-4 h-4 bg-blue-400 rounded-sm"
                                 title={seat.label}
                               />
@@ -658,7 +636,6 @@ export default function BusesPage() {
         </main>
       </div>
 
-      {/* View Layout Modal */}
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
@@ -682,13 +659,9 @@ export default function BusesPage() {
         )}
       </Modal>
 
-      {/* Add/Edit Modal */}
       <Modal
         isOpen={isAddModalOpen || isEditModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setIsEditModalOpen(false);
-        }}
+        onClose={closeFormModal}
         title={
           isAddModalOpen
             ? "เพิ่มรถบัสใหม่"
@@ -696,7 +669,6 @@ export default function BusesPage() {
         }
         size="xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Form */}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -706,7 +678,7 @@ export default function BusesPage() {
                 type="text"
                 value={formData.busNumber || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, busNumber: e.target.value })
+                  setFormData((prev) => ({ ...prev, busNumber: e.target.value }))
                 }
                 className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="เช่น 815-1, VIP-01"
@@ -718,9 +690,9 @@ export default function BusesPage() {
                 ประเภทรถ
               </label>
               <CustomSelect
-                value={formData.type || "มาตรฐาน"}
+                value={formData.type || defaultBusType}
                 onChange={(value) =>
-                  setFormData({ ...formData, type: value as string })
+                  setFormData((prev) => ({ ...prev, type: value as string }))
                 }
                 options={[
                   { value: "มาตรฐาน", label: "มาตรฐาน" },
@@ -737,10 +709,10 @@ export default function BusesPage() {
               <CustomSelect
                 value={formData.status || "active"}
                 onChange={(value) =>
-                  setFormData({
-                    ...formData,
+                  setFormData((prev) => ({
+                    ...prev,
                     status: value as "active" | "maintenance",
-                  })
+                  }))
                 }
                 options={[
                   { value: "active", label: "พร้อมใช้งาน" },
@@ -765,11 +737,11 @@ export default function BusesPage() {
                   type="number"
                   min={1}
                   max={20}
-                  value={formData.layout?.totalRows}
+                  value={formData.layout?.totalRows ?? 10}
                   onChange={(e) =>
                     updateLayoutField(
                       "totalRows",
-                      parseInt(e.target.value) || 1,
+                      Number.parseInt(e.target.value, 10) || 1,
                     )
                   }
                   className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -783,14 +755,51 @@ export default function BusesPage() {
                   type="number"
                   min={2}
                   max={6}
-                  value={formData.layout?.seatsPerRow}
+                  value={formData.layout?.seatsPerRow ?? 4}
                   onChange={(e) =>
                     updateLayoutField(
                       "seatsPerRow",
-                      parseInt(e.target.value) || 2,
+                      Number.parseInt(e.target.value, 10) || 2,
                     )
                   }
                   className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  มีแถวหลัง
+                </label>
+                <CustomSelect
+                  value={formData.layout?.hasBackRow ? "yes" : "no"}
+                  onChange={(value) =>
+                    updateLayoutField("hasBackRow", value === "yes")
+                  }
+                  options={[
+                    { value: "no", label: "ไม่มี" },
+                    { value: "yes", label: "มี" },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  จำนวนที่นั่งแถวหลัง
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={8}
+                  value={formData.layout?.backRowSeats ?? 0}
+                  onChange={(e) =>
+                    updateLayoutField(
+                      "backRowSeats",
+                      Number.parseInt(e.target.value, 10) || 0,
+                    )
+                  }
+                  disabled={!formData.layout?.hasBackRow}
+                  className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
             </div>
@@ -801,13 +810,13 @@ export default function BusesPage() {
                   ที่นั่งทั้งหมด
                 </span>
                 <span className="text-2xl font-bold text-blue-600">
-                  {formData.layout?.totalSeats}
+                  {formData.layout?.totalSeats ?? 40}
                 </span>
               </div>
             </div>
 
             <button
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700">
               <Save size={20} />
               <span>
@@ -816,7 +825,6 @@ export default function BusesPage() {
             </button>
           </div>
 
-          {/* Right: Preview with editable seat names */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
               ตัวอย่างผังที่นั่ง (คลิกที่ที่นั่งเพื่อแก้ไขชื่อ)

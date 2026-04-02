@@ -1,47 +1,164 @@
 "use client";
 
-import { useState } from "react";
-import { Sidebar } from "../components/Sidebar";
-import { Header } from "../components/Header";
-import { MapPinned, Plus, Search, Edit, Trash2, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPinned, Plus, Search, Edit, Trash2, MapPin, X } from "lucide-react";
 
-const mockRoutes = [
-  {
-    id: 1,
-    routeName: "ราชสีมา - ระยอง",
-    stations: [
-      { id: 1, stationName: "ปักธงชัย", stopOrder: 1 },
-      { id: 2, stationName: "กบินทร์บุรี", stopOrder: 2 },
-      { id: 3, stationName: "บ่อวิน", stopOrder: 3 },
-      { id: 4, stationName: "ระยอง", stopOrder: 4 },
-    ],
-  },
-  {
-    id: 2,
-    routeName: "โคราช - กรุงเทพ",
-    stations: [
-      { id: 5, stationName: "โคราช", stopOrder: 1 },
-      { id: 6, stationName: "ปากช่อง", stopOrder: 2 },
-      { id: 7, stationName: "วังน้ำเขียว", stopOrder: 3 },
-      { id: 8, stationName: "กรุงเทพ", stopOrder: 4 },
-    ],
-  },
-  {
-    id: 3,
-    routeName: "ราชสีมา - ขอนแก่น",
-    stations: [
-      { id: 9, stationName: "โคราช", stopOrder: 1 },
-      { id: 10, stationName: "บัวใหญ่", stopOrder: 2 },
-      { id: 11, stationName: "ขอนแก่น", stopOrder: 3 },
-    ],
-  },
-];
+import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
+import { apiRequest } from "@/lib/api-client";
+import { mapRoute, type RouteData } from "@/lib/bus-management";
 
 export default function RoutesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedRoute, setExpandedRoute] = useState<number | null>(1);
+  const [expandedRoute, setExpandedRoute] = useState<number | null>(null);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    routeName: "",
+    stationsInput: "",
+  });
 
-  const filteredRoutes = mockRoutes.filter((route) =>
+  const loadRoutes = async () => {
+    try {
+      const query = searchQuery.trim();
+      const data = await apiRequest<unknown[]>(
+        `/api/routes${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+      );
+      const mapped = data.map((item) => mapRoute(item));
+      setRoutes(mapped);
+      setExpandedRoute((current) =>
+        current && mapped.some((route) => route.id === current)
+          ? current
+          : (mapped[0]?.id ?? null),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "โหลดข้อมูลเส้นทางไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const query = searchQuery.trim();
+        const data = await apiRequest<unknown[]>(
+          `/api/routes${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+        );
+        const mapped = data.map((item) => mapRoute(item));
+
+        if (cancelled) {
+          return;
+        }
+
+        setRoutes(mapped);
+        setExpandedRoute((current) =>
+          current && mapped.some((route) => route.id === current)
+            ? current
+            : (mapped[0]?.id ?? null),
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "โหลดข้อมูลเส้นทางไม่สำเร็จ";
+        alert(message);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery]);
+
+  const handleOpenCreateModal = () => {
+    setFormData({ routeName: "", stationsInput: "" });
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setIsCreateModalOpen(false);
+    setFormData({ routeName: "", stationsInput: "" });
+  };
+
+  const handleSubmitCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const routeName = formData.routeName.trim();
+    if (!routeName) {
+      alert("กรุณากรอกชื่อเส้นทาง");
+      return;
+    }
+
+    const stations = formData.stationsInput
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((stationName, index) => ({
+        stationName,
+        stopOrder: index + 1,
+      }));
+
+    try {
+      await apiRequest("/api/routes", {
+        method: "POST",
+        body: JSON.stringify({
+          routeName,
+          stations,
+        }),
+      });
+      await loadRoutes();
+      handleCloseCreateModal();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "เพิ่มเส้นทางไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  const handleEdit = async (route: RouteData) => {
+    const routeName = window.prompt("แก้ไขชื่อเส้นทาง", route.routeName);
+    if (!routeName?.trim() || routeName.trim() === route.routeName) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/routes/${route.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ routeName: routeName.trim() }),
+      });
+      await loadRoutes();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "แก้ไขเส้นทางไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  const handleDelete = async (route: RouteData) => {
+    if (!window.confirm(`ต้องการลบเส้นทาง ${route.routeName} ใช่หรือไม่?`)) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/routes/${route.id}`, {
+        method: "DELETE",
+      });
+      await loadRoutes();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "ลบเส้นทางไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  const filteredRoutes = routes.filter((route) =>
     route.routeName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -54,7 +171,6 @@ export default function RoutesPage() {
           breadcrumbs={["หน้าหลัก", "จัดการเส้นทาง"]}
         />
         <main className="p-4 sm:p-6">
-          {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="relative w-full sm:w-auto">
               <Search
@@ -69,13 +185,14 @@ export default function RoutesPage() {
                 className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-64"
               />
             </div>
-            <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto">
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto">
               <Plus size={20} />
               <span>เพิ่มเส้นทาง</span>
             </button>
           </div>
 
-          {/* Routes List */}
           <div className="space-y-4">
             {filteredRoutes.map((route) => (
               <div
@@ -104,18 +221,23 @@ export default function RoutesPage() {
                   <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      onClick={(e) => e.stopPropagation()}>
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleEdit(route);
+                      }}>
                       <Edit size={18} />
                     </button>
                     <button
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      onClick={(e) => e.stopPropagation()}>
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDelete(route);
+                      }}>
                       <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
 
-                {/* Expanded Stations */}
                 {expandedRoute === route.id && (
                   <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                     <div className="border-t border-gray-100 pt-4">
@@ -147,6 +269,80 @@ export default function RoutesPage() {
           </div>
         </main>
       </div>
+
+      {/* Create Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleCloseCreateModal}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">
+                เพิ่มเส้นทางใหม่
+              </h3>
+              <button
+                onClick={handleCloseCreateModal}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitCreate} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  ชื่อเส้นทาง
+                </label>
+                <input
+                  type="text"
+                  value={formData.routeName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      routeName: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="เช่น กรุงเทพ - โคราช"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  จุดจอด (คั่นด้วยเครื่องหมาย ,)
+                </label>
+                <textarea
+                  value={formData.stationsInput}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      stationsInput: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
+                  placeholder="เช่น โคราช, ปากช่อง, กรุงเทพ"
+                />
+                <p className="text-xs text-gray-500 mt-1.5">
+                  ระบุชื่อจุดจอดคั่นด้วยเครื่องหมายลูกน้ำ จะเรียงลำดับตามที่ระบุ
+                </p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={handleCloseCreateModal}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  บันทึก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

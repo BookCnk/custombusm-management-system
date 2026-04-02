@@ -26,7 +26,7 @@ export function Header({
             <div className="mb-1 hidden flex-wrap items-center gap-2 text-xs text-gray-500 sm:flex sm:text-sm">
               {breadcrumbs.map((crumb, index) => (
                 <span key={index} className="min-w-0 truncate">
-                  {index > 0 && <span className="mx-2">ยป</span>}
+                  {index > 0 && <span className="mx-2">›</span>}
                   <span
                     className={
                       index === breadcrumbs.length - 1 ? "text-gray-900" : ""

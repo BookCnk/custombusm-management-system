@@ -1,142 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { Sidebar } from "../components/Sidebar";
-import { Header } from "../components/Header";
-import CustomSelect from "../components/CustomSelect";
+import { useEffect, useState } from "react";
 import {
-  CalendarDays,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
+  AlertTriangle,
   Bus,
-  MapPinned,
-  Users,
-  Clock,
-  X,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  MapPin,
-  Phone,
-  User,
-  AlertTriangle,
+  Clock,
   Copy,
+  Edit,
   LayoutGrid,
+  MapPin,
+  MapPinned,
+  Phone,
+  Plus,
+  Search,
+  Trash2,
+  User,
+  Users,
+  X,
 } from "lucide-react";
 
-// Mock Data
-const mockBuses = [
-  { id: 1, busNumber: "815-1", totalSeats: 40, type: "มาตรฐาน" },
-  { id: 2, busNumber: "815-2", totalSeats: 40, type: "มาตรฐาน" },
-  { id: 3, busNumber: "VIP-01", totalSeats: 32, type: "VIP" },
-  { id: 4, busNumber: "VIP-02", totalSeats: 32, type: "VIP" },
-  { id: 5, busNumber: "815-3", totalSeats: 40, type: "มาตรฐาน" },
-];
+import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
+import CustomSelect from "../components/CustomSelect";
+import { apiRequest } from "@/lib/api-client";
+import {
+  mapBooking,
+  mapBus,
+  mapRoute,
+  mapSchedule,
+  toDateInputValue,
+  type BookingData,
+  type BusData,
+  type RouteData,
+  type ScheduleData,
+} from "@/lib/bus-management";
 
-const mockRoutes = [
-  { id: 1, routeName: "ราชสีมา - ระยอง" },
-  { id: 2, routeName: "โคราช - กรุงเทพ" },
-  { id: 3, routeName: "ราชสีมา - ขอนแก่น" },
-];
+type ScheduleDetail = ScheduleData & {
+  detailedBookings: BookingData[];
+};
 
-const mockSchedules = [
-  {
-    id: 1,
-    busId: 1,
-    routeId: 1,
-    bus: { busNumber: "815-1", totalSeats: 40 },
-    route: { routeName: "ราชสีมา - ระยอง" },
-    departureDate: "2026-03-31",
-    departureTime: "08:30",
-    bookingsCount: 35,
-  },
-  {
-    id: 2,
-    busId: 4,
-    routeId: 2,
-    bus: { busNumber: "VIP-02", totalSeats: 32 },
-    route: { routeName: "โคราช - กรุงเทพ" },
-    departureDate: "2026-03-31",
-    departureTime: "10:00",
-    bookingsCount: 28,
-  },
-  {
-    id: 3,
-    busId: 5,
-    routeId: 1,
-    bus: { busNumber: "815-3", totalSeats: 40 },
-    route: { routeName: "ราชสีมา - ระยอง" },
-    departureDate: "2026-03-31",
-    departureTime: "14:30",
-    bookingsCount: 12,
-  },
-  {
-    id: 4,
-    busId: 2,
-    routeId: 3,
-    bus: { busNumber: "815-2", totalSeats: 40 },
-    route: { routeName: "ราชสีมา - ขอนแก่น" },
-    departureDate: "2026-04-01",
-    departureTime: "09:00",
-    bookingsCount: 0,
-  },
-  {
-    id: 5,
-    busId: 3,
-    routeId: 2,
-    bus: { busNumber: "VIP-01", totalSeats: 32 },
-    route: { routeName: "โคราช - กรุงเทพ" },
-    departureDate: "2026-04-01",
-    departureTime: "13:00",
-    bookingsCount: 5,
-  },
-];
-
-const mockBookings = [
-  {
-    id: 1,
-    passengerName: "สมชาย ใจดี",
-    phone: "081-234-5678",
-    seatNumber: "A12",
-    pickup: "ปักธงชัย",
-    dropoff: "ระยอง",
-    price: 350,
-    status: "CONFIRMED",
-  },
-  {
-    id: 2,
-    passengerName: "สมหญิง รักเรียน",
-    phone: "089-876-5432",
-    seatNumber: "B05",
-    pickup: "โคราช",
-    dropoff: "กรุงเทพ",
-    price: 420,
-    status: "CONFIRMED",
-  },
-  {
-    id: 3,
-    passengerName: "ประเสริฐ มากมี",
-    phone: "086-123-4567",
-    seatNumber: "A03",
-    pickup: "กบินทร์บุรี",
-    dropoff: "บ่อวิน",
-    price: 200,
-    status: "CONFIRMED",
-  },
-  {
-    id: 4,
-    passengerName: "มานี มานะ",
-    phone: "090-987-6543",
-    seatNumber: "C08",
-    pickup: "โคราช",
-    dropoff: "ระยอง",
-    price: 350,
-    status: "CONFIRMED",
-  },
-];
-
-// Modal Component
 function Modal({
   isOpen,
   onClose,
@@ -183,23 +88,42 @@ function Modal({
   );
 }
 
+function mapScheduleDetail(raw: unknown): ScheduleDetail {
+  const schedule = mapSchedule(raw);
+  const rawRecord = typeof raw === "object" && raw !== null ? raw : null;
+  const detailedBookings =
+    rawRecord && "bookings" in rawRecord && Array.isArray(rawRecord.bookings)
+      ? rawRecord.bookings.map((booking: unknown) => mapBooking(booking))
+      : [];
+
+  return {
+    ...schedule,
+    detailedBookings,
+    bookingsCount: detailedBookings.filter(
+      (booking) => booking.status === "CONFIRMED",
+    ).length,
+  };
+}
+
 export default function SchedulesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState("2026-03-31");
-  const [schedules, setSchedules] = useState(mockSchedules);
+  const [selectedDate, setSelectedDate] = useState(
+    toDateInputValue(new Date().toISOString()),
+  );
+  const [schedules, setSchedules] = useState<ScheduleData[]>([]);
+  const [buses, setBuses] = useState<BusData[]>([]);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
   const [filterBus, setFilterBus] = useState("");
   const [filterRoute, setFilterRoute] = useState("");
-
-  // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<
-    (typeof mockSchedules)[0] | null
-  >(null);
-
-  // Form State
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleData | null>(
+    null,
+  );
+  const [viewScheduleDetail, setViewScheduleDetail] =
+    useState<ScheduleDetail | null>(null);
   const [formData, setFormData] = useState({
     busId: "",
     routeId: "",
@@ -207,9 +131,81 @@ export default function SchedulesPage() {
     departureTime: "",
   });
 
+  const loadSchedules = async (date: string) => {
+    const data = await apiRequest<unknown[]>(
+      `/api/schedules?date=${encodeURIComponent(date)}`,
+    );
+    setSchedules(data.map((item) => mapSchedule(item)));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const [busData, routeData] = await Promise.all([
+          apiRequest<unknown[]>("/api/buses"),
+          apiRequest<unknown[]>("/api/routes"),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setBuses(busData.map((item) => mapBus(item)));
+        setRoutes(routeData.map((item) => mapRoute(item)));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "โหลดข้อมูลอ้างอิงไม่สำเร็จ";
+        alert(message);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const data = await apiRequest<unknown[]>(
+          `/api/schedules?date=${encodeURIComponent(selectedDate)}`,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setSchedules(data.map((item) => mapSchedule(item)));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error ? error.message : "โหลดตารางเดินรถไม่สำเร็จ";
+        alert(message);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
+
   const filteredSchedules = schedules.filter(
     (schedule) =>
-      schedule.departureDate === selectedDate &&
       (filterBus === "" || schedule.busId.toString() === filterBus) &&
       (filterRoute === "" || schedule.routeId.toString() === filterRoute) &&
       (schedule.route.routeName
@@ -223,6 +219,7 @@ export default function SchedulesPage() {
   const handleCreate = () => {
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+
     setFormData({
       busId: "",
       routeId: "",
@@ -232,7 +229,7 @@ export default function SchedulesPage() {
     setIsCreateModalOpen(true);
   };
 
-  const handleEdit = (schedule: (typeof mockSchedules)[0]) => {
+  const handleEdit = (schedule: ScheduleData) => {
     setSelectedSchedule(schedule);
     setFormData({
       busId: schedule.busId.toString(),
@@ -243,75 +240,123 @@ export default function SchedulesPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (schedule: (typeof mockSchedules)[0]) => {
+  const handleDelete = (schedule: ScheduleData) => {
     setSelectedSchedule(schedule);
     setIsDeleteModalOpen(true);
   };
 
-  const handleView = (schedule: (typeof mockSchedules)[0]) => {
+  const handleView = async (schedule: ScheduleData) => {
     setSelectedSchedule(schedule);
+    setViewScheduleDetail(null);
     setIsViewModalOpen(true);
-  };
 
-  const handleSubmitCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const bus = mockBuses.find((b) => b.id === parseInt(formData.busId));
-    const route = mockRoutes.find((r) => r.id === parseInt(formData.routeId));
-    if (bus && route) {
-      const newSchedule = {
-        id: schedules.length + 1,
-        busId: parseInt(formData.busId),
-        routeId: parseInt(formData.routeId),
-        bus: { busNumber: bus.busNumber, totalSeats: bus.totalSeats },
-        route: { routeName: route.routeName },
-        departureDate: formData.departureDate,
-        departureTime: formData.departureTime,
-        bookingsCount: 0,
-      };
-      setSchedules([...schedules, newSchedule]);
-      setIsCreateModalOpen(false);
+    try {
+      const data = await apiRequest<unknown>(`/api/schedules/${schedule.id}`);
+      setViewScheduleDetail(mapScheduleDetail(data));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "โหลดรายละเอียดรอบรถไม่สำเร็จ";
+      alert(message);
+      setIsViewModalOpen(false);
     }
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const closeFormModal = () => {
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
+    setSelectedSchedule(null);
+    setFormData({
+      busId: "",
+      routeId: "",
+      departureDate: "",
+      departureTime: "",
+    });
+  };
+
+  const handleSubmitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const bus = mockBuses.find((b) => b.id === parseInt(formData.busId));
-    const route = mockRoutes.find((r) => r.id === parseInt(formData.routeId));
-    if (bus && route && selectedSchedule) {
-      setSchedules(
-        schedules.map((s) =>
-          s.id === selectedSchedule.id
-            ? {
-                ...s,
-                busId: parseInt(formData.busId),
-                routeId: parseInt(formData.routeId),
-                bus: { busNumber: bus.busNumber, totalSeats: bus.totalSeats },
-                route: { routeName: route.routeName },
-                departureDate: formData.departureDate,
-                departureTime: formData.departureTime,
-              }
-            : s,
-        ),
-      );
-      setIsEditModalOpen(false);
+
+    try {
+      await apiRequest("/api/schedules", {
+        method: "POST",
+        body: JSON.stringify({
+          busId: Number(formData.busId),
+          routeId: Number(formData.routeId),
+          departureDate: formData.departureDate,
+          departureTime: formData.departureTime,
+        }),
+      });
+      closeFormModal();
+      await loadSchedules(selectedDate);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "เพิ่มรอบรถไม่สำเร็จ";
+      alert(message);
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedSchedule) {
-      setSchedules(schedules.filter((s) => s.id !== selectedSchedule.id));
+  const handleSubmitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedSchedule) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/schedules/${selectedSchedule.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          busId: Number(formData.busId),
+          routeId: Number(formData.routeId),
+          departureDate: formData.departureDate,
+          departureTime: formData.departureTime,
+        }),
+      });
+      closeFormModal();
+      await loadSchedules(selectedDate);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "แก้ไขรอบรถไม่สำเร็จ";
+      alert(message);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedSchedule) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/schedules/${selectedSchedule.id}`, {
+        method: "DELETE",
+      });
       setIsDeleteModalOpen(false);
+      setSelectedSchedule(null);
+      await loadSchedules(selectedDate);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "ลบรอบรถไม่สำเร็จ";
+      alert(message);
     }
   };
 
-  const handleDuplicate = (schedule: (typeof mockSchedules)[0]) => {
-    const newSchedule = {
-      ...schedule,
-      id: Math.max(...schedules.map((s) => s.id), 0) + 1,
-      departureDate: selectedDate,
-      bookingsCount: 0,
-    };
-    setSchedules([...schedules, newSchedule]);
+  const handleDuplicate = async (schedule: ScheduleData) => {
+    try {
+      await apiRequest("/api/schedules", {
+        method: "POST",
+        body: JSON.stringify({
+          busId: schedule.busId,
+          routeId: schedule.routeId,
+          departureDate: selectedDate,
+          departureTime: schedule.departureTime,
+        }),
+      });
+      await loadSchedules(selectedDate);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "คัดลอกรอบรถไม่สำเร็จ";
+      alert(message);
+    }
   };
 
   const nextDate = () => {
@@ -326,13 +371,15 @@ export default function SchedulesPage() {
     setSelectedDate(date.toISOString().split("T")[0]);
   };
 
+  const scheduleForView = viewScheduleDetail || selectedSchedule;
+  const bookingRows = viewScheduleDetail?.detailedBookings || [];
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       <div className="flex-1 transition-all duration-300 min-w-0">
         <Header title="ตารางเดินรถ" breadcrumbs={["หน้าหลัก", "ตารางเดินรถ"]} />
         <main className="p-4 sm:p-6">
-          {/* Date Navigation */}
           <div className="mb-6 flex items-center justify-center gap-2 sm:gap-4">
             <button
               onClick={prevDate}
@@ -357,7 +404,6 @@ export default function SchedulesPage() {
             </button>
           </div>
 
-          {/* Stats Summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <p className="text-xs text-gray-500">รอบรถทั้งหมด</p>
@@ -391,7 +437,6 @@ export default function SchedulesPage() {
             </div>
           </div>
 
-          {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
               <div className="relative">
@@ -418,7 +463,7 @@ export default function SchedulesPage() {
                 onChange={(value) => setFilterBus(value.toString())}
                 options={[
                   { value: "", label: "ทุกรถบัส" },
-                  ...mockBuses.map((bus) => ({
+                  ...buses.map((bus) => ({
                     value: bus.id.toString(),
                     label: `${bus.busNumber} (${bus.type})`,
                   })),
@@ -429,7 +474,7 @@ export default function SchedulesPage() {
                 onChange={(value) => setFilterRoute(value.toString())}
                 options={[
                   { value: "", label: "ทุกเส้นทาง" },
-                  ...mockRoutes.map((route) => ({
+                  ...routes.map((route) => ({
                     value: route.id.toString(),
                     label: route.routeName,
                   })),
@@ -445,16 +490,18 @@ export default function SchedulesPage() {
             </button>
           </div>
 
-          {/* Schedules Grid - Responsive */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredSchedules.map((schedule) => {
               const occupancyRate =
-                (schedule.bookingsCount / schedule.bus.totalSeats) * 100;
+                schedule.bus.totalSeats > 0
+                  ? (schedule.bookingsCount / schedule.bus.totalSeats) * 100
+                  : 0;
               const isFull = schedule.bookingsCount >= schedule.bus.totalSeats;
+
               return (
                 <div
                   key={schedule.id}
-                  onClick={() => handleView(schedule)}
+                  onClick={() => void handleView(schedule)}
                   className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all group">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -486,7 +533,7 @@ export default function SchedulesPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDuplicate(schedule);
+                          void handleDuplicate(schedule);
                         }}
                         className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                         title="คัดลอกรอบรถ">
@@ -572,13 +619,9 @@ export default function SchedulesPage() {
         </main>
       </div>
 
-      {/* Create/Edit Modal */}
       <Modal
         isOpen={isCreateModalOpen || isEditModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setIsEditModalOpen(false);
-        }}
+        onClose={closeFormModal}
         title={isCreateModalOpen ? "เพิ่มรอบรถใหม่" : "แก้ไขรอบรถ"}
         size="md">
         <form
@@ -591,11 +634,11 @@ export default function SchedulesPage() {
             <CustomSelect
               value={formData.busId}
               onChange={(value) =>
-                setFormData({ ...formData, busId: value.toString() })
+                setFormData((prev) => ({ ...prev, busId: value.toString() }))
               }
               options={[
                 { value: "", label: "-- เลือกรถบัส --" },
-                ...mockBuses.map((bus) => ({
+                ...buses.map((bus) => ({
                   value: bus.id.toString(),
                   label: `${bus.busNumber} (${bus.type}) - ${bus.totalSeats} ที่นั่ง`,
                 })),
@@ -610,11 +653,11 @@ export default function SchedulesPage() {
             <CustomSelect
               value={formData.routeId}
               onChange={(value) =>
-                setFormData({ ...formData, routeId: value.toString() })
+                setFormData((prev) => ({ ...prev, routeId: value.toString() }))
               }
               options={[
                 { value: "", label: "-- เลือกเส้นทาง --" },
-                ...mockRoutes.map((route) => ({
+                ...routes.map((route) => ({
                   value: route.id.toString(),
                   label: route.routeName,
                 })),
@@ -631,7 +674,10 @@ export default function SchedulesPage() {
                 type="date"
                 value={formData.departureDate}
                 onChange={(e) =>
-                  setFormData({ ...formData, departureDate: e.target.value })
+                  setFormData((prev) => ({
+                    ...prev,
+                    departureDate: e.target.value,
+                  }))
                 }
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
@@ -652,10 +698,10 @@ export default function SchedulesPage() {
                     const hours = e.target.value.padStart(2, "0");
                     const minutes =
                       formData.departureTime?.split(":")[1] || "00";
-                    setFormData({
-                      ...formData,
+                    setFormData((prev) => ({
+                      ...prev,
                       departureTime: `${hours}:${minutes}`,
-                    });
+                    }));
                   }}
                   className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
                 />
@@ -669,10 +715,10 @@ export default function SchedulesPage() {
                   onChange={(e) => {
                     const hours = formData.departureTime?.split(":")[0] || "00";
                     const minutes = e.target.value.padStart(2, "0");
-                    setFormData({
-                      ...formData,
+                    setFormData((prev) => ({
+                      ...prev,
                       departureTime: `${hours}:${minutes}`,
-                    });
+                    }));
                   }}
                   className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
                 />
@@ -684,10 +730,7 @@ export default function SchedulesPage() {
           <div className="flex gap-3 pt-4">
             <button
               type="button"
-              onClick={() => {
-                setIsCreateModalOpen(false);
-                setIsEditModalOpen(false);
-              }}
+              onClick={closeFormModal}
               className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
               ยกเลิก
             </button>
@@ -700,7 +743,6 @@ export default function SchedulesPage() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
@@ -731,7 +773,7 @@ export default function SchedulesPage() {
               ยกเลิก
             </button>
             <button
-              onClick={handleConfirmDelete}
+              onClick={() => void handleConfirmDelete()}
               className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
               ลบรอบรถ
             </button>
@@ -739,15 +781,16 @@ export default function SchedulesPage() {
         </div>
       </Modal>
 
-      {/* View Schedule Modal */}
       <Modal
         isOpen={isViewModalOpen}
-        onClose={() => setIsViewModalOpen(false)}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setViewScheduleDetail(null);
+        }}
         title="รายละเอียดรอบรถ"
         size="lg">
-        {selectedSchedule && (
+        {scheduleForView && (
           <div className="space-y-6">
-            {/* Schedule Info */}
             <div className="bg-gray-50 rounded-xl p-4 sm:p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
@@ -757,10 +800,10 @@ export default function SchedulesPage() {
                   <div>
                     <p className="text-xs text-gray-500">รถบัส</p>
                     <p className="font-medium text-gray-900">
-                      {selectedSchedule.bus.busNumber}
+                      {scheduleForView.bus.busNumber}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {selectedSchedule.bus.totalSeats} ที่นั่ง
+                      {scheduleForView.bus.totalSeats} ที่นั่ง
                     </p>
                   </div>
                 </div>
@@ -771,7 +814,7 @@ export default function SchedulesPage() {
                   <div>
                     <p className="text-xs text-gray-500">เส้นทาง</p>
                     <p className="font-medium text-gray-900">
-                      {selectedSchedule.route.routeName}
+                      {scheduleForView.route.routeName}
                     </p>
                   </div>
                 </div>
@@ -783,7 +826,7 @@ export default function SchedulesPage() {
                     <p className="text-xs text-gray-500">วันที่</p>
                     <p className="font-medium text-gray-900">
                       {new Date(
-                        selectedSchedule.departureDate,
+                        scheduleForView.departureDate,
                       ).toLocaleDateString("th-TH", {
                         year: "numeric",
                         month: "long",
@@ -797,36 +840,38 @@ export default function SchedulesPage() {
                     <Clock size={20} className="text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">เวลาออก</p>
+                    <p className="text-xs text-gray-500">เวลาออกเดินทาง</p>
                     <p className="font-medium text-gray-900">
-                      {selectedSchedule.departureTime} น.
+                      {scheduleForView.departureTime} น.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Occupancy Bar */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-gray-600 flex items-center gap-2">
                     <Users size={16} />
-                    จองแล้ว {selectedSchedule.bookingsCount}/
-                    {selectedSchedule.bus.totalSeats} ที่นั่ง
+                    จองแล้ว {scheduleForView.bookingsCount}/
+                    {scheduleForView.bus.totalSeats} ที่นั่ง
                   </span>
                   <span
                     className={`font-medium ${
-                      (selectedSchedule.bookingsCount /
-                        selectedSchedule.bus.totalSeats) *
+                      scheduleForView.bus.totalSeats > 0 &&
+                      (scheduleForView.bookingsCount /
+                        scheduleForView.bus.totalSeats) *
                         100 >=
-                      80
+                        80
                         ? "text-red-600"
                         : "text-green-600"
                     }`}>
-                    {(
-                      (selectedSchedule.bookingsCount /
-                        selectedSchedule.bus.totalSeats) *
-                      100
-                    ).toFixed(0)}
+                    {scheduleForView.bus.totalSeats > 0
+                      ? (
+                          (scheduleForView.bookingsCount /
+                            scheduleForView.bus.totalSeats) *
+                          100
+                        ).toFixed(0)
+                      : "0"}
                     %
                   </span>
                 </div>
@@ -834,18 +879,17 @@ export default function SchedulesPage() {
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{
-                      width: `${(selectedSchedule.bookingsCount / selectedSchedule.bus.totalSeats) * 100}%`,
+                      width: `${scheduleForView.bus.totalSeats > 0 ? (scheduleForView.bookingsCount / scheduleForView.bus.totalSeats) * 100 : 0}%`,
                     }}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Bookings List */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <User size={18} />
-                รายชื่อผู้โดยสาร ({mockBookings.length} คน)
+                รายชื่อผู้โดยสาร ({bookingRows.length} คน)
               </h4>
               <div className="overflow-x-auto -mx-4 sm:-mx-6">
                 <div className="inline-block min-w-full px-4 sm:px-6">
@@ -870,16 +914,16 @@ export default function SchedulesPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {mockBookings.map((booking) => (
+                      {bookingRows.map((booking) => (
                         <tr key={booking.id} className="hover:bg-gray-50">
                           <td className="px-3 py-3">
                             <div>
                               <p className="font-medium text-gray-900 text-sm">
-                                {booking.passengerName}
+                                {booking.passengerName || "-"}
                               </p>
                               <p className="text-xs text-gray-500 flex items-center gap-1">
                                 <Phone size={12} />
-                                {booking.phone}
+                                {booking.passengerPhone || "-"}
                               </p>
                             </div>
                           </td>
@@ -891,13 +935,13 @@ export default function SchedulesPage() {
                           <td className="px-3 py-3 hidden sm:table-cell">
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <MapPin size={14} className="text-gray-400" />
-                              {booking.pickup}
+                              {booking.pickupStation?.stationName || "-"}
                             </div>
                           </td>
                           <td className="px-3 py-3 hidden sm:table-cell">
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <MapPin size={14} className="text-gray-400" />
-                              {booking.dropoff}
+                              {booking.dropoffStation?.stationName || "-"}
                             </div>
                           </td>
                           <td className="px-3 py-3 text-right">
@@ -907,18 +951,28 @@ export default function SchedulesPage() {
                           </td>
                         </tr>
                       ))}
+                      {bookingRows.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-3 py-6 text-center text-sm text-gray-500">
+                            ยังไม่มีผู้โดยสารในรอบนี้
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 onClick={() => {
                   setIsViewModalOpen(false);
-                  handleEdit(selectedSchedule);
+                  if (selectedSchedule) {
+                    handleEdit(selectedSchedule);
+                  }
                 }}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
                 <Edit size={18} />
@@ -926,8 +980,7 @@ export default function SchedulesPage() {
               </button>
               <button
                 onClick={() => {
-                  setIsViewModalOpen(false);
-                  alert("ดูผังที่นั่ง - จะเชื่อมต่อกับหน้า booking ในอนาคต");
+                  window.location.href = "/bookings";
                 }}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">
                 <LayoutGrid size={18} />

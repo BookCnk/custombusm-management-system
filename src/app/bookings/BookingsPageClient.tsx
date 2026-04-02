@@ -14,6 +14,8 @@ import {
   Ticket,
   Users,
   X,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 
 import { Header } from "../components/Header";
@@ -223,30 +225,54 @@ function BookingModal({
   selectedSeats: string[];
   onConfirm: (passengerData: {
     name: string;
-    phone: string;
-    pickup: string;
-    dropoff: string;
+    pickupStationId: number;
+    dropoffStationId: number;
   }) => void;
 }) {
   const [passengerName, setPassengerName] = useState("");
-  const [passengerPhone, setPassengerPhone] = useState("");
-  const [pickupStation, setPickupStation] = useState("");
-  const [dropoffStation, setDropoffStation] = useState("");
+  const [pickupStationId, setPickupStationId] = useState<number | "">("");
+  const [dropoffStationId, setDropoffStationId] = useState<number | "">("");
+  const [error, setError] = useState("");
 
   if (!isOpen || !schedule) return null;
 
+  const stations = schedule.route.stations;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+
+    if (!pickupStationId || !dropoffStationId) {
+      setError("กรุณาเลือกจุดขึ้นรถและจุดลงรถ");
+      return;
+    }
+
+    if (pickupStationId === dropoffStationId) {
+      setError("จุดขึ้นรถและจุดลงรถต้องไม่เหมือนกัน");
+      return;
+    }
+
+    const pickupStation = stations.find((s) => s.id === pickupStationId);
+    const dropoffStation = stations.find((s) => s.id === dropoffStationId);
+
+    if (!pickupStation || !dropoffStation) {
+      setError("ไม่พบสถานีที่เลือก");
+      return;
+    }
+
+    if (pickupStation.stopOrder >= dropoffStation.stopOrder) {
+      setError("จุดขึ้นรถต้องอยู่ก่อนจุดลงรถ");
+      return;
+    }
+
     onConfirm({
       name: passengerName,
-      phone: passengerPhone,
-      pickup: pickupStation,
-      dropoff: dropoffStation,
+      pickupStationId,
+      dropoffStationId,
     });
     setPassengerName("");
-    setPassengerPhone("");
-    setPickupStation("");
-    setDropoffStation("");
+    setPickupStationId("");
+    setDropoffStationId("");
   };
 
   return (
@@ -303,58 +329,59 @@ function BookingModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                ชื่อผู้โดยสาร
+                ชื่อผู้โดยสาร (ไม่บังคับ)
               </label>
               <input
                 type="text"
                 value={passengerName}
                 onChange={(e) => setPassengerName(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ชื่อ-นามสกุล"
-                required
+                placeholder="ชื่อ-นามสกุล (ถ้ามี)"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                เบอร์โทรศัพท์
-              </label>
-              <input
-                type="tel"
-                value={passengerPhone}
-                onChange={(e) => setPassengerPhone(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="081-234-5678"
-                required
-              />
-            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  จุดขึ้นรถ
+                  จุดขึ้นรถ *
                 </label>
-                <input
-                  type="text"
-                  value={pickupStation}
-                  onChange={(e) => setPickupStation(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="สถานีขึ้นรถ"
-                  required
-                />
+                <select
+                  value={pickupStationId}
+                  onChange={(e) => setPickupStationId(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required>
+                  <option value="">เลือก</option>
+                  {stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.stationName}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  จุดลงรถ
+                  จุดลงรถ *
                 </label>
-                <input
-                  type="text"
-                  value={dropoffStation}
-                  onChange={(e) => setDropoffStation(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="สถานีลงรถ"
-                  required
-                />
+                <select
+                  value={dropoffStationId}
+                  onChange={(e) => setDropoffStationId(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required>
+                  <option value="">เลือก</option>
+                  {stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.stationName}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -367,6 +394,68 @@ function BookingModal({
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SuccessAlert({
+  message,
+  onClose,
+  type = "success",
+}: {
+  message: string;
+  onClose: () => void;
+  type?: "success" | "error";
+}) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-4 fade-in duration-300">
+      <div
+        className={`rounded-xl shadow-xl p-4 flex items-center gap-3 min-w-[300px] ${
+          type === "success"
+            ? "bg-green-50 border border-green-200"
+            : "bg-red-50 border border-red-200"
+        }`}>
+        <div
+          className={`p-2 rounded-full ${
+            type === "success" ? "bg-green-100" : "bg-red-100"
+          }`}>
+          {type === "success" ? (
+            <Check className="w-5 h-5 text-green-600" />
+          ) : (
+            <AlertCircle className="w-5 h-5 text-red-600" />
+          )}
+        </div>
+        <div className="flex-1">
+          <p
+            className={`font-medium ${
+              type === "success" ? "text-green-900" : "text-red-900"
+            }`}>
+            {type === "success" ? "สำเร็จ!" : "เกิดข้อผิดพลาด"}
+          </p>
+          <p
+            className={`text-sm ${
+              type === "success" ? "text-green-700" : "text-red-700"
+            }`}>
+            {message}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className={`p-1 rounded-lg transition-colors ${
+            type === "success"
+              ? "text-green-400 hover:text-green-600 hover:bg-green-100"
+              : "text-red-400 hover:text-red-600 hover:bg-red-100"
+          }`}>
+          <X size={16} />
+        </button>
       </div>
     </div>
   );
@@ -388,6 +477,11 @@ export default function BookingsPageClient({
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isDriverMode, setIsDriverMode] = useState(false);
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({ show: false, message: "", type: "success" });
   const skipInitialLoadRef = useRef(true);
 
   const loadSchedules = async (date: string) => {
@@ -433,7 +527,7 @@ export default function BookingsPageClient({
 
         const message =
           error instanceof Error ? error.message : "โหลดเที่ยวรถไม่สำเร็จ";
-        alert(message);
+        setToast({ show: true, message, type: "error" });
       }
     };
 
@@ -468,42 +562,12 @@ export default function BookingsPageClient({
     setIsDriverMode(false);
   };
 
-  const findStationByName = (schedule: ScheduleData, stationName: string) => {
-    const normalized = stationName.trim().toLocaleLowerCase();
-    return schedule.route.stations.find(
-      (station) =>
-        station.stationName.trim().toLocaleLowerCase() === normalized,
-    );
-  };
-
   const handleConfirmBooking = async (passengerData: {
     name: string;
-    phone: string;
-    pickup: string;
-    dropoff: string;
+    pickupStationId: number;
+    dropoffStationId: number;
   }) => {
     if (!selectedSchedule) {
-      return;
-    }
-
-    const pickupStation = findStationByName(
-      selectedSchedule,
-      passengerData.pickup,
-    );
-    const dropoffStation = findStationByName(
-      selectedSchedule,
-      passengerData.dropoff,
-    );
-
-    if (!pickupStation || !dropoffStation) {
-      alert(
-        `ไม่พบจุดขึ้นหรือลงรถในเส้นทางนี้\nตัวเลือกที่มี: ${selectedSchedule.route.stations.map((station) => station.stationName).join(", ")}`,
-      );
-      return;
-    }
-
-    if (pickupStation.stopOrder >= dropoffStation.stopOrder) {
-      alert("จุดขึ้นรถต้องอยู่ก่อนจุดลงรถ");
       return;
     }
 
@@ -515,10 +579,10 @@ export default function BookingsPageClient({
             body: JSON.stringify({
               scheduleId: selectedSchedule.id,
               seatNumber,
-              passengerName: passengerData.name.trim(),
-              passengerPhone: passengerData.phone.trim(),
-              pickupStationId: pickupStation.id,
-              dropoffStationId: dropoffStation.id,
+              passengerName: passengerData.name.trim() || null,
+              passengerPhone: null,
+              pickupStationId: passengerData.pickupStationId,
+              dropoffStationId: passengerData.dropoffStationId,
               price: 0,
             }),
           }),
@@ -532,13 +596,15 @@ export default function BookingsPageClient({
       setSelectedSchedule(refreshedSchedule);
       setIsBookingModalOpen(false);
       setSelectedSeats([]);
-      alert(
-        `จองสำเร็จ!\nผู้โดยสาร: ${passengerData.name}\nที่นั่ง: ${selectedSeats.join(", ")}`,
-      );
+      setToast({
+        show: true,
+        message: `จองสำเร็จ!${passengerData.name ? ` ผู้โดยสาร: ${passengerData.name}` : ""} ที่นั่ง: ${selectedSeats.join(", ")}`,
+        type: "success",
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "ทำรายการจองไม่สำเร็จ";
-      alert(message);
+      setToast({ show: true, message, type: "error" });
     }
   };
 
@@ -852,6 +918,14 @@ export default function BookingsPageClient({
           void handleConfirmBooking(passengerData);
         }}
       />
+
+      {toast.show && (
+        <SuccessAlert
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
     </div>
   );
 }

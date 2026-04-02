@@ -1,9 +1,7 @@
 "use client";
 
-import { Bell, Settings, Search, Menu } from "lucide-react";
-import Image from "next/image";
+import { Search, Menu, LogOut } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
-
 export function Header({
   title = "Dashboard",
   breadcrumbs = ["Dashboard"],
@@ -12,6 +10,11 @@ export function Header({
   breadcrumbs?: string[];
 }) {
   const { toggle } = useSidebar();
+
+  const handleLogout = () => {
+    // TODO: Implement actual logout logic
+    window.location.href = "/login";
+  };
 
   return (
     <header className="border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
@@ -43,27 +46,14 @@ export function Header({
         </div>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <button className="hidden rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 sm:inline-flex">
-            <Search size={20} />
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-red-600 transition-colors hover:bg-red-100">
+            <LogOut size={18} />
+            <span className="hidden text-sm font-medium sm:inline">
+              ออกจากระบบ
+            </span>
           </button>
-          <button className="relative rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700">
-            <Bell size={20} />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-          </button>
-          <button className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700">
-            <Settings size={20} />
-          </button>
-          <div className="ml-2 flex items-center gap-3 sm:ml-4">
-            <div className="h-9 w-9 overflow-hidden rounded-full bg-blue-500">
-              <Image
-                src="https://i.pravatar.cc/150?img=12"
-                alt="User"
-                width={36}
-                height={36}
-                className="object-cover"
-              />
-            </div>
-          </div>
         </div>
       </div>
     </header>

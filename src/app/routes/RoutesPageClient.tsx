@@ -35,6 +35,9 @@ export default function RoutesPageClient({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editFormData, setEditFormData] = useState<{
     routeName: string;
     stations: { id?: number; stationName: string }[];
@@ -141,6 +144,7 @@ export default function RoutesPageClient({
     }
 
     try {
+      setIsCreating(true);
       await apiRequest("/api/routes", {
         method: "POST",
         body: JSON.stringify({
@@ -154,6 +158,8 @@ export default function RoutesPageClient({
       const message =
         error instanceof Error ? error.message : "เพิ่มเส้นทางไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -193,15 +199,13 @@ export default function RoutesPageClient({
       }))
       .filter((s) => s.stationName !== "");
 
-    // Debug logging
-    console.log("Submitting stations:", JSON.stringify(stations, null, 2));
-
     if (stations.length === 0) {
       alert("กรุณาเพิ่มอย่างน้อย 1 จุดจอด");
       return;
     }
 
     try {
+      setIsUpdating(true);
       await apiRequest(`/api/routes/${selectedRoute.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -215,6 +219,8 @@ export default function RoutesPageClient({
       const message =
         error instanceof Error ? error.message : "แก้ไขเส้นทางไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -232,6 +238,7 @@ export default function RoutesPageClient({
     if (!selectedRoute) return;
 
     try {
+      setIsDeleting(true);
       await apiRequest(`/api/routes/${selectedRoute.id}`, {
         method: "DELETE",
       });
@@ -241,6 +248,8 @@ export default function RoutesPageClient({
       const message =
         error instanceof Error ? error.message : "ลบเส้นทางไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -352,6 +361,13 @@ export default function RoutesPageClient({
                 )}
               </div>
             ))}
+            {filteredRoutes.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
+                {searchQuery.trim()
+                  ? "ไม่พบเส้นทางที่ตรงกับคำค้นหา"
+                  : "ยังไม่มีเส้นทางในระบบ"}
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -418,23 +434,6 @@ export default function RoutesPageClient({
                             ...prev,
                             stations: newStations,
                           }));
-                          // eslint-disable-next-line no-console
-                          console.log(
-                            "API - stationsToUpdate:",
-                            JSON.stringify(newStations, null, 2),
-                          );
-                          // eslint-disable-next-line no-console
-                          console.log(
-                            "API - existingStations:",
-                            JSON.stringify(
-                              editFormData.stations.map((s) => ({
-                                id: s.id,
-                                name: s.stationName,
-                              })),
-                              null,
-                              2,
-                            ),
-                          );
                         }}
                         className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         placeholder={`จุดจอดที่ ${index + 1}`}
@@ -474,13 +473,15 @@ export default function RoutesPageClient({
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
+                  disabled={isUpdating}
                   onClick={handleCloseEditModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  disabled={isUpdating}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   บันทึก
                 </button>
               </div>
@@ -508,14 +509,16 @@ export default function RoutesPageClient({
               <div className="flex gap-3">
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={handleCloseDeleteModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={() => void handleConfirmDelete()}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ลบเส้นทาง
                 </button>
               </div>
@@ -620,13 +623,15 @@ export default function RoutesPageClient({
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
+                  disabled={isCreating}
                   onClick={handleCloseCreateModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  disabled={isCreating}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   บันทึก
                 </button>
               </div>

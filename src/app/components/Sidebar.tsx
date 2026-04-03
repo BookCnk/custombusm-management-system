@@ -28,6 +28,15 @@ const menuItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isOpen, toggle } = useSidebar();
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } finally {
+      window.location.href = "/login";
+    }
+  };
 
   return (
     <>
@@ -92,7 +101,9 @@ export function Sidebar() {
 
         {isOpen && (
           <div className="border-t border-white/10 p-3">
-            <button className="flex w-full items-center rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-white/10 hover:text-white">
+            <button
+              onClick={() => void handleLogout()}
+              className="flex w-full items-center rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-white/10 hover:text-white">
               <LogOut size={18} className="mr-3 shrink-0" />
               <span>ออกจากระบบ</span>
             </button>

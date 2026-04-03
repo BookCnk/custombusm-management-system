@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Menu, LogOut } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 export function Header({
   title = "Dashboard",
@@ -11,9 +11,14 @@ export function Header({
 }) {
   const { toggle } = useSidebar();
 
-  const handleLogout = () => {
-    // TODO: Implement actual logout logic
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } finally {
+      window.location.href = "/login";
+    }
   };
 
   return (

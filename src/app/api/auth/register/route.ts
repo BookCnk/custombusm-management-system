@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { signAuthToken } from "@/lib/auth/jwt";
+import { hashPassword } from "@/lib/auth/password";
 import { NextRequest, NextResponse } from "next/server";
+
+import { applyAuthCookie } from "../_lib/session";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,11 +31,16 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username,
-        password,
+        password: await hashPassword(password),
       },
     });
 
-    return NextResponse.json(
+    const token = await signAuthToken({
+      sub: user.id.toString(),
+      username: user.username,
+    });
+
+    const response = NextResponse.json(
       {
         id: user.id,
         username: user.username,
@@ -39,6 +48,8 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
+
+    return applyAuthCookie(response, token);
   } catch {
     return NextResponse.json(
       { error: "Failed to create user" },

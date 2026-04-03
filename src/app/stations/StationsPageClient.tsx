@@ -43,6 +43,9 @@ export default function StationsPageClient({
     null,
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editFormData, setEditFormData] = useState({
     stationName: "",
     stopOrder: "",
@@ -149,6 +152,7 @@ export default function StationsPageClient({
     }
 
     try {
+      setIsCreating(true);
       await apiRequest("/api/stations", {
         method: "POST",
         body: JSON.stringify({
@@ -163,6 +167,8 @@ export default function StationsPageClient({
       const message =
         error instanceof Error ? error.message : "เพิ่มจุดจอดไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -194,6 +200,7 @@ export default function StationsPageClient({
     }
 
     try {
+      setIsUpdating(true);
       await apiRequest(`/api/stations/${selectedStation.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -207,6 +214,8 @@ export default function StationsPageClient({
       const message =
         error instanceof Error ? error.message : "แก้ไขจุดจอดไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -224,18 +233,18 @@ export default function StationsPageClient({
     if (!selectedStation) return;
 
     try {
-      console.log("Deleting station:", selectedStation.id);
-      const result = await apiRequest(`/api/stations/${selectedStation.id}`, {
+      setIsDeleting(true);
+      await apiRequest(`/api/stations/${selectedStation.id}`, {
         method: "DELETE",
       });
-      console.log("Delete result:", result);
       await loadStations();
       handleCloseDeleteModal();
     } catch (error) {
-      console.error("Delete error:", error);
       const message =
         error instanceof Error ? error.message : "ลบจุดจอดไม่สำเร็จ";
       alert(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -371,6 +380,13 @@ export default function StationsPageClient({
                 </div>
               ))}
             </div>
+            {filteredStations.length === 0 && (
+              <div className="p-8 text-center text-gray-500">
+                {searchQuery.trim()
+                  ? "ไม่พบจุดจอดที่ตรงกับคำค้นหา"
+                  : "ยังไม่มีจุดจอดในระบบ"}
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -434,13 +450,15 @@ export default function StationsPageClient({
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
+                  disabled={isUpdating}
                   onClick={handleCloseEditModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  disabled={isUpdating}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   บันทึก
                 </button>
               </div>
@@ -473,14 +491,16 @@ export default function StationsPageClient({
               <div className="flex gap-3">
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={handleCloseDeleteModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={() => void handleConfirmDelete()}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ลบจุดจอด
                 </button>
               </div>
@@ -569,13 +589,15 @@ export default function StationsPageClient({
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
+                  disabled={isCreating}
                   onClick={handleCloseCreateModal}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                  className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  disabled={isCreating}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:cursor-not-allowed disabled:opacity-60">
                   บันทึก
                 </button>
               </div>

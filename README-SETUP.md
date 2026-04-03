@@ -16,6 +16,7 @@ Get your database credentials from [Supabase Dashboard](https://app.supabase.com
 
 - `DATABASE_URL` - Use the connection pooling URL (port 6543 with pgbouncer)
 - `DIRECT_URL` - Use the direct connection URL (port 5432)
+- `JWT_SECRET` - Use a long random secret for signing authentication tokens
 
 Replace these placeholders in `.env`:
 - `[your-project-ref]` - Your Supabase project reference
@@ -49,6 +50,12 @@ This project includes a Vercel Cron job that calls `/api/keep-alive` once per da
 Set `CRON_SECRET` in your Vercel project's environment variables so Vercel can authenticate the request automatically.
 
 The route runs a lightweight `SELECT 1` query against the database to register activity.
+
+## Authentication
+
+The app now uses JWT authentication stored in an `httpOnly` cookie.
+
+Set `JWT_SECRET` in your local `.env` and in your deployment environment before using login/register.
 
 ## Prisma Commands
 

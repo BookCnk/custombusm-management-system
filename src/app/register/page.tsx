@@ -45,7 +45,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/login");
+      router.replace("/dashboard");
     } catch {
       setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {

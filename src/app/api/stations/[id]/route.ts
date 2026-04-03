@@ -129,11 +129,11 @@ export async function DELETE(
       return jsonError("Station not found", 404);
     }
     if (code === "P2003") {
-      // Cannot delete due to existing bookings - mark as inactive instead
+      // Cannot delete due to existing bookings - hide it with a unique negative stopOrder.
       try {
         await prisma.routeStation.update({
           where: { id: stationId },
-          data: { stopOrder: -1 },
+          data: { stopOrder: -stationId },
         });
         return NextResponse.json({
           message: "Station marked as inactive due to existing bookings",

@@ -32,7 +32,11 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      const nextPath =
+        typeof window === "undefined"
+          ? null
+          : new URLSearchParams(window.location.search).get("next");
+      router.replace(nextPath || "/dashboard");
     } catch {
       setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {

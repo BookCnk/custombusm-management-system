@@ -185,10 +185,11 @@ export async function PATCH(
               where: { id: station.id },
             });
           } catch {
-            // If delete fails (has bookings), mark as inactive by setting stopOrder to -1
+            // If delete fails (for example, existing bookings reference the station),
+            // keep it hidden using a unique negative stopOrder to avoid collisions.
             await tx.routeStation.update({
               where: { id: station.id },
-              data: { stopOrder: -1 },
+              data: { stopOrder: -station.id },
             });
           }
         }

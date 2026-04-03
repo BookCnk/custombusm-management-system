@@ -12,7 +12,9 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import { normalizeSeatLayout } from "@/lib/bus-management";
+import BookingRealtimeShell from "./BookingRealtimeShell";
 import BookingClient from "./BookingClient";
+import { buildBookingSnapshot } from "./booking-realtime-shared";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -36,7 +38,23 @@ async function getScheduleData(scheduleId: string) {
       },
       bookings: {
         where: { status: "CONFIRMED" },
-        select: { seatNumber: true },
+        select: {
+          id: true,
+          seatNumber: true,
+          pickupStation: {
+            select: {
+              stationName: true,
+            },
+          },
+          dropoffStation: {
+            select: {
+              stationName: true,
+            },
+          },
+        },
+        orderBy: {
+          seatNumber: "asc",
+        },
       },
     },
   });
@@ -58,10 +76,13 @@ export default async function BookingDetailPage({ params }: PageProps) {
     schedule.bus.layout,
     schedule.bus.totalSeats,
   );
-  const bookedSeats = schedule.bookings.map((b) => b.seatNumber);
+  const bookingSnapshot = buildBookingSnapshot(schedule.bookings);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <BookingRealtimeShell
+      scheduleId={schedule.id}
+      initialSnapshot={bookingSnapshot}>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="mx-auto max-w-6xl px-4 py-4">
@@ -124,12 +145,14 @@ export default async function BookingDetailPage({ params }: PageProps) {
       </div>
 
       {/* Client Component for interactivity */}
-      <BookingClient
-        scheduleId={id}
-        layout={layout}
-        stations={schedule.route.stations}
-        bookedSeats={bookedSeats}
-      />
-    </div>
+        <BookingClient
+          key={`${schedule.id}:${bookingSnapshot}`}
+          scheduleId={id}
+          layout={layout}
+          stations={schedule.route.stations}
+          bookings={schedule.bookings}
+        />
+      </div>
+    </BookingRealtimeShell>
   );
 }

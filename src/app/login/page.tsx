@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bus, Eye, EyeOff, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -47,21 +47,20 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
-            <Bus className="h-6 w-6 text-white" />
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src="/logo-web.jpg"
+            alt="ราชสีมาบ่อวินระยอง"
+            className="mx-auto h-16 w-16 rounded-xl object-cover"
+          />
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-gray-900">
+              ราชสีมาบ่อวินระยอง
+            </h1>
+            <p className="text-sm text-gray-600">
+              รถร่วมบริษัทวิศวกรเสนา จำกัด
+            </p>
           </div>
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
-            เข้าสู่ระบบ
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            ยังไม่มีบัญชี?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-blue-600 hover:text-blue-500">
-              สมัครสมาชิก
-            </Link>
-          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

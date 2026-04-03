@@ -58,12 +58,12 @@ export function Sidebar() {
         <div className="flex h-16 shrink-0 items-center justify-between p-4">
           {isOpen && (
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500">
-                <Bus size={20} className="text-white" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
+                <Bus className="h-6 w-6 text-white" />
               </div>
-              <span className="whitespace-nowrap text-lg font-semibold">
-                BusManage
-              </span>
+              <h1 className="text-center text-xl font-bold text-white">
+                ราชสีมาบ่อวินระยอง
+              </h1>
             </div>
           )}
           <button

@@ -1,9 +1,19 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Bus, Ticket, Clock, CalendarDays } from "lucide-react";
+import {
+  ArrowLeft,
+  Bus,
+  Ticket,
+  Clock,
+  CalendarDays,
+  LayoutGrid,
+  CheckSquare,
+} from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { normalizeSeatLayout, type SeatLayout } from "@/lib/bus-management";
+import BookingRealtimeShell from "../BookingRealtimeShell";
+import { buildBookingSnapshot } from "../booking-realtime-shared";
 
 interface BookingPreviewPageProps {
   params: Promise<{ id: string }>;
@@ -151,26 +161,46 @@ export default async function BookingPreviewPage({
   });
 
   const seatRows = generateDriverViewSeats(layout, bookedSeats);
+  const bookingSnapshot = buildBookingSnapshot(schedule.bookings);
 
   const availableSeats = schedule.bus.totalSeats - schedule.bookings.length;
   const occupancyRate =
     (schedule.bookings.length / schedule.bus.totalSeats) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <BookingRealtimeShell
+      scheduleId={schedule.id}
+      initialSnapshot={bookingSnapshot}>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="mx-auto max-w-6xl px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/bookings"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
-              <ArrowLeft size={20} />
-              <span>กลับ</span>
-            </Link>
-            <h1 className="text-xl font-semibold text-gray-900">
-              ผังที่นั่ง - โหมดคนขับ
-            </h1>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/bookings"
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+                <ArrowLeft size={20} />
+                <span>กลับ</span>
+              </Link>
+              <h1 className="text-xl font-semibold text-gray-900">
+                ผังที่นั่ง - โหมดคนขับ
+              </h1>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+              <Link
+                href={`/bookings/${id}`}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-md transition-colors hover:bg-white/50">
+                <CheckSquare size={16} />
+                จองที่นั่ง
+              </Link>
+              <div className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-white text-gray-900 rounded-md shadow-sm">
+                <LayoutGrid size={16} />
+                ผังที่นั่ง
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -326,6 +356,7 @@ export default async function BookingPreviewPage({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </BookingRealtimeShell>
   );
 }

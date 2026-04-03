@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
 
-    return applyAuthCookie(response, token);
+    return applyAuthCookie(response, token, request);
   } catch {
     return NextResponse.json(
       { error: "Failed to create user" },

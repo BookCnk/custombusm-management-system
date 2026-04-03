@@ -13,14 +13,18 @@ function getBearerToken(request: NextRequest) {
   return authHeader.slice("Bearer ".length).trim() || null;
 }
 
-export function applyAuthCookie(response: NextResponse, token: string) {
-  response.cookies.set(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
+export function applyAuthCookie(
+  response: NextResponse,
+  token: string,
+  request?: NextRequest,
+) {
+  response.cookies.set(AUTH_COOKIE_NAME, token, getAuthCookieOptions(request));
   return response;
 }
 
-export function clearAuthCookie(response: NextResponse) {
+export function clearAuthCookie(response: NextResponse, request?: NextRequest) {
   response.cookies.set(AUTH_COOKIE_NAME, "", {
-    ...getAuthCookieOptions(),
+    ...getAuthCookieOptions(request),
     maxAge: 0,
   });
 

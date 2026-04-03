@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       message: "Login successful",
     });
 
-    return applyAuthCookie(response, token);
+    return applyAuthCookie(response, token, request);
   } catch {
     return NextResponse.json(
       { error: "Failed to login" },

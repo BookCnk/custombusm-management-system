@@ -50,10 +50,22 @@ interface ScheduleData {
   bookings: Array<{
     seatNumber: string;
     status: string;
+    price: number;
   }>;
   _count?: {
     bookings: number;
   };
+}
+
+interface DailyRevenue {
+  date: string;
+  revenue: number;
+  bookings: number;
+}
+
+interface RevenueResponse {
+  totalRevenue: number;
+  totalBookings: number;
 }
 
 function getTodayDateString(): string {
@@ -65,40 +77,68 @@ export default function DashboardPage() {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [todaySchedules, setTodaySchedules] = useState<ScheduleData[]>([]);
   const [todayBookings, setTodayBookings] = useState<number>(0);
+  const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        const today = getTodayDateString();
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        const [busesData, routesData, schedulesData] = await Promise.all([
-          apiRequest<BusData[]>("/api/buses"),
-          apiRequest<RouteData[]>("/api/routes"),
-          apiRequest<ScheduleData[]>(`/api/schedules?date=${today}`),
-        ]);
+      const [busesData, routesData, schedulesData] = await Promise.all([
+        apiRequest<BusData[]>("/api/buses"),
+        apiRequest<RouteData[]>("/api/routes"),
+        apiRequest<ScheduleData[]>(`/api/schedules?date=${getTodayDateString()}`),
+      ]);
 
-        setBuses(busesData);
-        setRoutes(routesData);
-        setTodaySchedules(schedulesData);
+      setBuses(busesData);
+      setRoutes(routesData);
+      setTodaySchedules(schedulesData);
 
-        // Count total bookings for today
-        const totalBookings = schedulesData.reduce(
-          (sum, schedule) => sum + (schedule._count?.bookings || 0),
-          0,
+      const totalBookings = schedulesData.reduce(
+        (sum: number, schedule: ScheduleData) =>
+          sum + (schedule._count?.bookings || 0),
+        0,
+      );
+      setTodayBookings(totalBookings);
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 6);
+
+      const revenueDates: string[] = [];
+      const revenuePromises: Array<Promise<RevenueResponse>> = [];
+
+      for (
+        let d = new Date(startDate);
+        d <= endDate;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const dateStr = d.toISOString().split("T")[0];
+        revenueDates.push(dateStr);
+        revenuePromises.push(
+          apiRequest<RevenueResponse>(`/api/bookings/revenue?date=${dateStr}`),
         );
-        setTodayBookings(totalBookings);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load dashboard data",
-        );
-      } finally {
-        setIsLoading(false);
       }
-    };
 
+      const revenueResponses = await Promise.all(revenuePromises);
+      const revenueData: DailyRevenue[] = revenueResponses.map((data, index) => ({
+        date: revenueDates[index],
+        revenue: data.totalRevenue || 0,
+        bookings: data.totalBookings || 0,
+      }));
+
+      setDailyRevenue(revenueData);
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError("ไม่สามารถโหลดข้อมูลได้");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     void fetchDashboardData();
   }, []);
 
@@ -153,6 +193,7 @@ export default function DashboardPage() {
     month: "long",
     day: "numeric",
   });
+  const maxRevenue = Math.max(...dailyRevenue.map((d) => d.revenue), 1);
 
   if (isLoading) {
     return (
@@ -218,6 +259,55 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Revenue Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">
+                รายได้รายวัน (7 วันล่าสุด)
+              </h3>
+              <p className="text-sm text-gray-500">
+                แสดงรายได้และจำนวนการจองในแต่ละวัน
+              </p>
+            </div>
+            <div className="p-4 sm:p-6">
+              <div className="h-64 flex items-end justify-between gap-2">
+                {dailyRevenue.map((day) => {
+                  const heightPercentage = (day.revenue / maxRevenue) * 100;
+                  const isToday = day.date === getTodayDateString();
+
+                  return (
+                    <div
+                      key={day.date}
+                      className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                      <div className="relative flex h-52 w-full items-end">
+                        <div
+                          className={`w-full rounded-t-lg transition-all duration-300 ${
+                            isToday ? "bg-blue-500" : "bg-gray-300"
+                          }`}
+                          style={{ height: `${Math.max(heightPercentage, 4)}%` }}
+                        />
+                        <div className="absolute -top-6 text-xs font-medium text-gray-700">
+                          ฿{day.revenue.toLocaleString("th-TH")}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-600 text-center">
+                        <div>
+                          {new Date(day.date).toLocaleDateString("th-TH", {
+                            weekday: "short",
+                          })}
+                        </div>
+                        <div>{new Date(day.date).getDate()}</div>
+                        <div className="text-xs text-gray-500">
+                          {day.bookings} จอง
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Today's Schedules - Full Width */}

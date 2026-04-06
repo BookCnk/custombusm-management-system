@@ -85,10 +85,13 @@ function generateSeats(layout: SeatLayout): SeatPreviewItem[][] {
         continue;
       }
 
-      const colLabel =
-        col <= layout.aisleAfter
-          ? String.fromCharCode(65 + col - 1)
-          : String.fromCharCode(65 + col - 2);
+      // คำนวณตำแหน่งจริงในแถว (ไม่รวม aisle)
+      let actualCol = col;
+      if (col > layout.aisleAfter + 1) {
+        actualCol = col - 1; // ลบ 1 เพื่อข้าม aisle
+      }
+
+      const colLabel = String.fromCharCode(65 + actualCol - 1);
       const originalLabel = `${colLabel}${row}`;
       const customLabel = customLabels[originalLabel];
 
@@ -117,9 +120,19 @@ function generateSeats(layout: SeatLayout): SeatPreviewItem[][] {
           label: "",
           originalLabel: "",
         });
+        continue;
       }
 
-      const originalLabel = `${String.fromCharCode(65 + i)}${layout.totalRows + 1}`;
+      // คำนวณตำแหน่งจริงในแถวหลัง (ไม่รวม aisle)
+      let actualCol = i + 1;
+      if (
+        i >= Math.floor(layout.backRowSeats / 2) &&
+        layout.backRowSeats >= 4
+      ) {
+        actualCol = i; // ลบ 1 สำหรับตำแหน่งที่อยู่หลัง aisle
+      }
+
+      const originalLabel = `${String.fromCharCode(65 + actualCol - 1)}${layout.totalRows + 1}`;
       const customLabel = customLabels[originalLabel];
 
       backRow.push({

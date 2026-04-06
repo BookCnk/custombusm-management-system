@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, List, Trash2, X } from "lucide-react";
 
 import { apiRequest } from "@/lib/api-client";
@@ -31,6 +31,7 @@ interface RouteStation {
 interface BookingItem {
   id: number;
   seatNumber: string;
+  price: number;
   pickupStation: {
     stationName: string;
   } | null;
@@ -53,17 +54,17 @@ function generateSeats(
   selectedSeats: string[],
 ): Seat[][] {
   const rows: Seat[][] = [];
+  let seatNumber = 1; // เริ่มนับจาก 1
 
   rows.push([
-    { id: "driver", type: "driver", label: "BUS" },
-    { id: "door", type: "door", label: "DOOR" },
-    ...Array(layout.seatsPerRow - 2)
+    ...Array(layout.seatsPerRow - 1)
       .fill(null)
       .map((_, i) => ({
         id: `aisle-top-${i}`,
         type: "aisle" as SeatType,
         label: "",
       })),
+    { id: "driver", type: "driver", label: "คนขับ" },
   ]);
 
   for (let row = 1; row <= layout.totalRows; row++) {
@@ -75,17 +76,14 @@ function generateSeats(
         continue;
       }
 
-      const colLabel =
-        col <= layout.aisleAfter
-          ? String.fromCharCode(65 + col - 1)
-          : String.fromCharCode(65 + col - 2);
-      const seatLabel = `${colLabel}${row}`;
+      const seatLabel = seatNumber.toString();
       let type: SeatType = "available";
 
       if (bookedSeats.includes(seatLabel)) type = "booked";
       else if (selectedSeats.includes(seatLabel)) type = "selected";
 
       rowSeats.push({ id: `seat-${row}-${col}`, type, label: seatLabel });
+      seatNumber++; // เพิ่มหมายเลขที่นั่ง
     }
 
     rows.push(rowSeats);
@@ -100,15 +98,17 @@ function generateSeats(
         layout.backRowSeats >= 4
       ) {
         backRow.push({ id: "aisle-back", type: "aisle", label: "" });
+        continue;
       }
 
-      const seatLabel = `${String.fromCharCode(65 + i)}${layout.totalRows + 1}`;
+      const seatLabel = seatNumber.toString();
       let type: SeatType = "available";
 
       if (bookedSeats.includes(seatLabel)) type = "booked";
       else if (selectedSeats.includes(seatLabel)) type = "selected";
 
       backRow.push({ id: `seat-back-${i}`, type, label: seatLabel });
+      seatNumber++; // เพิ่มหมายเลขที่นั่ง
     }
 
     rows.push(backRow);
@@ -168,6 +168,7 @@ export default function BookingClient({
     (legacyBookedSeats ?? []).map((seatNumber, index) => ({
       id: -(index + 1),
       seatNumber,
+      price: 0,
       pickupStation: null,
       dropoffStation: null,
     }));
@@ -186,9 +187,17 @@ export default function BookingClient({
       "",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deletingBookingId, setDeletingBookingId] = useState<number | null>(null);
+  const [deletingBookingId, setDeletingBookingId] = useState<number | null>(
+    null,
+  );
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isBookedListModalOpen, setIsBookedListModalOpen] = useState(false);
+  const [price, setPrice] = useState("0");
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   const bookedSeats = bookings.map((booking) => booking.seatNumber);
   const seatRows = generateSeats(layout, bookedSeats, selectedSeats);
@@ -197,6 +206,12 @@ export default function BookingClient({
     pickupStationId !== "" &&
     dropoffStationId !== "" &&
     pickupStationId !== dropoffStationId;
+  const isBookingActionDisabled = !hasHydrated || selectedSeats.length === 0;
+  const isSubmitDisabled =
+    !hasHydrated ||
+    selectedSeats.length === 0 ||
+    !canSubmitRoute ||
+    isSubmitting;
 
   const handleSeatClick = (seat: Seat) => {
     if (
@@ -230,9 +245,15 @@ export default function BookingClient({
 
     const pickupId = Number(pickupStationId);
     const dropoffId = Number(dropoffStationId);
+    const parsedPrice = Number(price);
 
     if (!Number.isInteger(pickupId) || !Number.isInteger(dropoffId)) {
       alert("ข้อมูลจุดขึ้นและจุดลงไม่ถูกต้อง");
+      return;
+    }
+
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      alert("กรุณาระบุราคาเป็นตัวเลขตั้งแต่ 0 ขึ้นไป");
       return;
     }
 
@@ -247,11 +268,9 @@ export default function BookingClient({
           body: JSON.stringify({
             scheduleId: parseInt(scheduleId, 10),
             seatNumber,
-            passengerName: null,
-            passengerPhone: null,
             pickupStationId: pickupId,
             dropoffStationId: dropoffId,
-            price: 0,
+            price: parsedPrice,
           }),
         });
 
@@ -264,6 +283,7 @@ export default function BookingClient({
         ),
       );
       setSelectedSeats([]);
+      setPrice("0");
       setIsBookingModalOpen(false);
       announceScheduleBookingChange(Number(scheduleId));
       alert("จองตั๋วสำเร็จ");
@@ -321,7 +341,7 @@ export default function BookingClient({
               <button
                 type="button"
                 onClick={() => setIsBookingModalOpen(true)}
-                disabled={selectedSeats.length === 0}
+                disabled={isBookingActionDisabled}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300">
                 <CheckCircle size={18} />
                 จองที่นั่ง ({selectedSeats.length})
@@ -339,7 +359,6 @@ export default function BookingClient({
                     disabled={
                       seat.type === "booked" ||
                       seat.type === "driver" ||
-                      seat.type === "door" ||
                       seat.type === "aisle"
                     }
                     className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-colors ${
@@ -376,6 +395,85 @@ export default function BookingClient({
               <span className="text-gray-600">จองแล้ว</span>
             </div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-xl bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                รายละเอียดการจอง
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                ดูรายการที่นั่งที่จองแล้ว พร้อมจุดขึ้น จุดลง
+                และยกเลิกได้จากหน้านี้
+              </p>
+            </div>
+            <div className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+              {bookings.length} รายการ
+            </div>
+          </div>
+
+          {bookings.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              ยังไม่มีรายการจองสำหรับเที่ยวรถนี้
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      ที่นั่ง
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      ราคา
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      จุดรับ
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      จุดส่ง
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      การจัดการ
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {bookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex min-w-10 items-center justify-center rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">
+                          {booking.seatNumber}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        ฿{booking.price.toLocaleString("th-TH")}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {booking.pickupStation?.stationName || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {booking.dropoffStation?.stationName || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBooking(booking.id)}
+                          disabled={deletingBookingId === booking.id}
+                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">
+                          <Trash2 size={16} />
+                          {deletingBookingId === booking.id
+                            ? "กำลังลบ..."
+                            : "ลบรายการ"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -442,6 +540,22 @@ export default function BookingClient({
             </select>
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              ราคา
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -451,9 +565,7 @@ export default function BookingClient({
             </button>
             <button
               type="submit"
-              disabled={
-                selectedSeats.length === 0 || !canSubmitRoute || isSubmitting
-              }
+              disabled={isSubmitDisabled}
               className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300">
               {isSubmitting ? "กำลังจอง..." : `จอง (${selectedSeats.length})`}
             </button>

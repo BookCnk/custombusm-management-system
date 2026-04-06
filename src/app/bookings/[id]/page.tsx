@@ -13,7 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { normalizeSeatLayout } from "@/lib/bus-management";
 import BookingRealtimeShell from "./BookingRealtimeShell";
-import BookingClient from "./BookingClient";
+import BookingClientShell from "./BookingClientShell";
 import { buildBookingSnapshot } from "./booking-realtime-shared";
 
 interface PageProps {
@@ -41,6 +41,7 @@ async function getScheduleData(scheduleId: string) {
         select: {
           id: true,
           seatNumber: true,
+          price: true,
           pickupStation: {
             select: {
               stationName: true,
@@ -145,7 +146,7 @@ export default async function BookingDetailPage({ params }: PageProps) {
       </div>
 
       {/* Client Component for interactivity */}
-        <BookingClient
+        <BookingClientShell
           key={`${schedule.id}:${bookingSnapshot}`}
           scheduleId={id}
           layout={layout}

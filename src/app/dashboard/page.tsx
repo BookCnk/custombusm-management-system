@@ -1,18 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sidebar } from "../components/Sidebar";
-import { Header } from "../components/Header";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   Bus,
-  MapPinned,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  MapPinned,
+  Plus,
   Ticket,
   TrendingUp,
   Users,
-  Plus,
+  Wallet,
 } from "lucide-react";
+
 import { apiRequest } from "@/lib/api-client";
+
+import { Header } from "../components/Header";
+import { Sidebar } from "../components/Sidebar";
 
 interface BusData {
   id: number;
@@ -20,18 +37,11 @@ interface BusData {
   type: string;
   totalSeats: number;
   status: string;
-  _count?: {
-    schedules: number;
-  };
 }
 
 interface RouteData {
   id: number;
   routeName: string;
-  stations?: Array<{
-    id: number;
-    stationName: string;
-  }>;
 }
 
 interface ScheduleData {
@@ -47,11 +57,6 @@ interface ScheduleData {
     id: number;
     routeName: string;
   };
-  bookings: Array<{
-    seatNumber: string;
-    status: string;
-    price: number;
-  }>;
   _count?: {
     bookings: number;
   };
@@ -63,137 +68,206 @@ interface DailyRevenue {
   bookings: number;
 }
 
-interface RevenueResponse {
-  totalRevenue: number;
-  totalBookings: number;
+interface MonthlyRevenue {
+  month: string;
+  revenue: number;
+  bookings: number;
 }
 
-function getTodayDateString(): string {
-  return new Date().toISOString().split("T")[0];
+interface RevenueRangeResponse {
+  startDate: string;
+  endDate: string;
+  totalRevenue: number;
+  totalBookings: number;
+  daily: DailyRevenue[];
 }
+
+interface MonthlyRevenueResponse {
+  endMonth: string;
+  months: number;
+  totalRevenue: number;
+  totalBookings: number;
+  monthly: MonthlyRevenue[];
+}
+
+function getTodayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getCurrentMonthString() {
+  return getTodayDateString().slice(0, 7);
+}
+
+function getDateDaysAgo(dateString: string, days: number) {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getDateDaysFrom(dateString: string, days: number) {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatThaiDate(value: string) {
+  return new Date(value).toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function formatShortThaiDate(value: string) {
+  return new Date(value).toLocaleDateString("th-TH", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatThaiMonth(value: string) {
+  return new Date(`${value}-01`).toLocaleDateString("th-TH", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+const STAT_STYLES = {
+  blue: {
+    icon: "bg-blue-100 text-blue-600",
+    accent: "text-blue-600",
+  },
+  green: {
+    icon: "bg-emerald-100 text-emerald-600",
+    accent: "text-emerald-600",
+  },
+  orange: {
+    icon: "bg-amber-100 text-amber-600",
+    accent: "text-amber-600",
+  },
+  rose: {
+    icon: "bg-rose-100 text-rose-600",
+    accent: "text-rose-600",
+  },
+} as const;
 
 export default function DashboardPage() {
   const [buses, setBuses] = useState<BusData[]>([]);
   const [routes, setRoutes] = useState<RouteData[]>([]);
-  const [todaySchedules, setTodaySchedules] = useState<ScheduleData[]>([]);
-  const [todayBookings, setTodayBookings] = useState<number>(0);
+  const [selectedDaySchedules, setSelectedDaySchedules] = useState<ScheduleData[]>([]);
   const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([]);
+  const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthString());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const [busesData, routesData, schedulesData] = await Promise.all([
-        apiRequest<BusData[]>("/api/buses"),
-        apiRequest<RouteData[]>("/api/routes"),
-        apiRequest<ScheduleData[]>(`/api/schedules?date=${getTodayDateString()}`),
-      ]);
-
-      setBuses(busesData);
-      setRoutes(routesData);
-      setTodaySchedules(schedulesData);
-
-      const totalBookings = schedulesData.reduce(
-        (sum: number, schedule: ScheduleData) =>
-          sum + (schedule._count?.bookings || 0),
-        0,
-      );
-      setTodayBookings(totalBookings);
-
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 6);
-
-      const revenueDates: string[] = [];
-      const revenuePromises: Array<Promise<RevenueResponse>> = [];
-
-      for (
-        let d = new Date(startDate);
-        d <= endDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateStr = d.toISOString().split("T")[0];
-        revenueDates.push(dateStr);
-        revenuePromises.push(
-          apiRequest<RevenueResponse>(`/api/bookings/revenue?date=${dateStr}`),
-        );
-      }
-
-      const revenueResponses = await Promise.all(revenuePromises);
-      const revenueData: DailyRevenue[] = revenueResponses.map((data, index) => ({
-        date: revenueDates[index],
-        revenue: data.totalRevenue || 0,
-        bookings: data.totalBookings || 0,
-      }));
-
-      setDailyRevenue(revenueData);
-    } catch (err) {
-      console.error("Error fetching dashboard data:", err);
-      setError("ไม่สามารถโหลดข้อมูลได้");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const rangeStart = getDateDaysAgo(selectedDate, 6);
+
+        const [busesData, routesData, schedulesData, revenueRange, monthlySummary] =
+          await Promise.all([
+            apiRequest<BusData[]>("/api/buses"),
+            apiRequest<RouteData[]>("/api/routes"),
+            apiRequest<ScheduleData[]>(`/api/schedules?date=${selectedDate}`),
+            apiRequest<RevenueRangeResponse>(
+              `/api/bookings/revenue?startDate=${rangeStart}&endDate=${selectedDate}`,
+            ),
+            apiRequest<MonthlyRevenueResponse>(
+              `/api/bookings/revenue?groupBy=month&months=6&endMonth=${selectedMonth}`,
+            ),
+          ]);
+
+        setBuses(busesData);
+        setRoutes(routesData);
+        setSelectedDaySchedules(schedulesData);
+        setDailyRevenue(revenueRange.daily);
+        setMonthlyRevenue(monthlySummary.monthly);
+      } catch (fetchError) {
+        console.error("Error fetching dashboard data:", fetchError);
+        setError("ไม่สามารถโหลดข้อมูลแดชบอร์ดได้");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     void fetchDashboardData();
-  }, []);
+  }, [selectedDate, selectedMonth]);
 
-  const activeBuses = buses.filter((b) => b.status === "active").length;
-  const totalBuses = buses.length;
-  const totalRoutes = routes.length;
-  const todayScheduleCount = todaySchedules.length;
-
-  // Calculate occupancy rate for today
-  const totalSeatsToday = todaySchedules.reduce(
-    (sum, s) => sum + s.bus.totalSeats,
+  const activeBuses = buses.filter((bus) => bus.status === "active").length;
+  const totalSeatsOnSelectedDay = selectedDaySchedules.reduce(
+    (sum, schedule) => sum + schedule.bus.totalSeats,
+    0,
+  );
+  const selectedDayBookings = selectedDaySchedules.reduce(
+    (sum, schedule) => sum + (schedule._count?.bookings || 0),
     0,
   );
   const occupancyRate =
-    totalSeatsToday > 0
-      ? Math.round((todayBookings / totalSeatsToday) * 100)
+    totalSeatsOnSelectedDay > 0
+      ? Math.round((selectedDayBookings / totalSeatsOnSelectedDay) * 100)
       : 0;
+  const selectedDayRevenue =
+    dailyRevenue.find((day) => day.date === selectedDate) ?? {
+      date: selectedDate,
+      revenue: 0,
+      bookings: 0,
+    };
+  const totalRangeRevenue = dailyRevenue.reduce((sum, day) => sum + day.revenue, 0);
+  const averageRangeRevenue = dailyRevenue.length
+    ? Math.round(totalRangeRevenue / dailyRevenue.length)
+    : 0;
+  const bestDay =
+    dailyRevenue.reduce<DailyRevenue | null>(
+      (best, current) =>
+        !best || current.revenue > best.revenue ? current : best,
+      null,
+    ) ?? selectedDayRevenue;
+  const maxMonthlyRevenue = Math.max(...monthlyRevenue.map((item) => item.revenue), 1);
 
   const stats = [
     {
       icon: Bus,
       label: "จำนวนรถบัส",
-      value: totalBuses.toString(),
-      change: `${activeBuses} คันใช้งานได้`,
-      color: "blue",
+      value: buses.length.toLocaleString("th-TH"),
+      change: `${activeBuses.toLocaleString("th-TH")} คันพร้อมใช้งาน`,
+      tone: "blue" as const,
     },
     {
       icon: MapPinned,
       label: "เส้นทางทั้งหมด",
-      value: totalRoutes.toString(),
-      change: "ใช้งานอยู่",
-      color: "green",
+      value: routes.length.toLocaleString("th-TH"),
+      change: "พร้อมให้บริการทุกวัน",
+      tone: "green" as const,
     },
     {
       icon: CalendarDays,
-      label: "ตารางเดินรถวันนี้",
-      value: todayScheduleCount.toString(),
-      change: `${todaySchedules.filter((s) => (s._count?.bookings || 0) >= s.bus.totalSeats).length} รอบเต็ม`,
-      color: "orange",
+      label: "รอบเดินรถวันที่เลือก",
+      value: selectedDaySchedules.length.toLocaleString("th-TH"),
+      change: formatThaiDate(selectedDate),
+      tone: "orange" as const,
     },
     {
       icon: Ticket,
-      label: "การจองวันนี้",
-      value: todayBookings.toString(),
-      change: `${occupancyRate}% อัตราการจอง`,
-      color: "purple",
+      label: "อัตราการจอง",
+      value: `${occupancyRate}%`,
+      change: `${selectedDayBookings.toLocaleString("th-TH")} ที่นั่งถูกจอง`,
+      tone: "rose" as const,
     },
   ];
-
-  const todayDateString = new Date().toLocaleDateString("th-TH", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const maxRevenue = Math.max(...dailyRevenue.map((d) => d.revenue), 1);
 
   if (isLoading) {
     return (
@@ -202,8 +276,8 @@ export default function DashboardPage() {
         <div className="flex-1 min-w-0 transition-all duration-300">
           <Header title="แดชบอร์ด" breadcrumbs={["หน้าหลัก", "แดชบอร์ด"]} />
           <main className="p-4 sm:p-6">
-            <div className="flex items-center justify-center h-64">
-              <div className="text-gray-500">กำลังโหลด...</div>
+            <div className="flex h-64 items-center justify-center">
+              <div className="text-gray-500">กำลังโหลดข้อมูล...</div>
             </div>
           </main>
         </div>
@@ -218,7 +292,7 @@ export default function DashboardPage() {
         <div className="flex-1 min-w-0 transition-all duration-300">
           <Header title="แดชบอร์ด" breadcrumbs={["หน้าหลัก", "แดชบอร์ด"]} />
           <main className="p-4 sm:p-6">
-            <div className="flex items-center justify-center h-64">
+            <div className="flex h-64 items-center justify-center">
               <div className="text-red-500">{error}</div>
             </div>
           </main>
@@ -232,27 +306,26 @@ export default function DashboardPage() {
       <Sidebar />
       <div className="flex-1 min-w-0 transition-all duration-300">
         <Header title="แดชบอร์ด" breadcrumbs={["หน้าหลัก", "แดชบอร์ด"]} />
-        <main className="p-4 sm:p-6">
-          {/* Stats Cards */}
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
+        <main className="space-y-6 p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat) => {
               const Icon = stat.icon;
+              const style = STAT_STYLES[stat.tone];
+
               return (
                 <div
                   key={stat.label}
-                  className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+                  className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="space-y-1">
                       <p className="text-sm text-gray-500">{stat.label}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {stat.value}
-                      </p>
+                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                     </div>
-                    <div className={`p-3 rounded-lg bg-${stat.color}-100`}>
-                      <Icon size={24} className={`text-${stat.color}-600`} />
+                    <div className={`rounded-2xl p-3 ${style.icon}`}>
+                      <Icon size={22} />
                     </div>
                   </div>
-                  <p className="text-xs text-green-600 mt-3 flex items-center gap-1">
+                  <p className={`mt-4 flex items-center gap-1 text-xs ${style.accent}`}>
                     <TrendingUp size={14} />
                     {stat.change}
                   </p>
@@ -261,63 +334,315 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* Revenue Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">
-                รายได้รายวัน (7 วันล่าสุด)
-              </h3>
-              <p className="text-sm text-gray-500">
-                แสดงรายได้และจำนวนการจองในแต่ละวัน
-              </p>
-            </div>
-            <div className="p-4 sm:p-6">
-              <div className="h-64 flex items-end justify-between gap-2">
-                {dailyRevenue.map((day) => {
-                  const heightPercentage = (day.revenue / maxRevenue) * 100;
-                  const isToday = day.date === getTodayDateString();
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-700 px-5 py-6 text-white sm:px-6">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-blue-100/80">
+                    Revenue Overview
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold">
+                    ภาพรวมรายได้ พร้อมดูย้อนหลังตามวันที่ต้องการ
+                  </h2>
+                  <p className="mt-2 text-sm text-blue-100/80">
+                    เลือกวันที่เพื่อดูยอดรายวันย้อนหลัง 7 วัน และเลือกเดือนเพื่อดูสรุปรายได้รายเดือน
+                  </p>
+                </div>
 
-                  return (
-                    <div
-                      key={day.date}
-                      className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                      <div className="relative flex h-52 w-full items-end">
-                        <div
-                          className={`w-full rounded-t-lg transition-all duration-300 ${
-                            isToday ? "bg-blue-500" : "bg-gray-300"
-                          }`}
-                          style={{ height: `${Math.max(heightPercentage, 4)}%` }}
-                        />
-                        <div className="absolute -top-6 text-xs font-medium text-gray-700">
-                          ฿{day.revenue.toLocaleString("th-TH")}
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-600 text-center">
-                        <div>
-                          {new Date(day.date).toLocaleDateString("th-TH", {
-                            weekday: "short",
-                          })}
-                        </div>
-                        <div>{new Date(day.date).getDate()}</div>
-                        <div className="text-xs text-gray-500">
-                          {day.bookings} จอง
-                        </div>
-                      </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <label className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+                    <span className="mb-2 block text-xs font-medium text-blue-100/80">
+                      วันที่อ้างอิง
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDate(getDateDaysAgo(selectedDate, 1))}
+                        className="rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/20">
+                        <ChevronLeft size={16} />
+                      </button>
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        max={getTodayDateString()}
+                        onChange={(event) => setSelectedDate(event.target.value)}
+                        className="w-full rounded-xl border border-white/15 bg-slate-950/25 px-3 py-2 text-sm text-white outline-none [color-scheme:dark]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedDate((current) => {
+                            const next = getDateDaysFrom(current, 1);
+                            return next > getTodayDateString() ? getTodayDateString() : next;
+                          })
+                        }
+                        className="rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/20">
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
-                  );
-                })}
+                  </label>
+
+                  <label className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+                    <span className="mb-2 block text-xs font-medium text-blue-100/80">
+                      เดือนสำหรับสรุป
+                    </span>
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      max={getCurrentMonthString()}
+                      onChange={(event) => setSelectedMonth(event.target.value)}
+                      className="w-full rounded-xl border border-white/15 bg-slate-950/25 px-3 py-2 text-sm text-white outline-none [color-scheme:dark]"
+                    />
+                  </label>
+
+                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4 backdrop-blur">
+                    <p className="text-xs font-medium text-emerald-100/80">
+                      รายได้วันที่เลือก
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">
+                      {formatCurrency(selectedDayRevenue.revenue)}
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-100/80">
+                      {selectedDayRevenue.bookings.toLocaleString("th-TH")} รายการจอง
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Today's Schedules - Full Width */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="grid grid-cols-1 gap-5 p-5 sm:p-6 xl:grid-cols-[1.35fr,0.85fr]">
+              <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4 sm:p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      รายได้ย้อนหลัง 7 วัน
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      ช่วง {formatThaiDate(dailyRevenue[0]?.date ?? selectedDate)} ถึง{" "}
+                      {formatThaiDate(selectedDate)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs text-slate-500 shadow-sm">
+                    <span className="inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    รายได้
+                  </div>
+                </div>
+
+                <div className="-mx-1 overflow-x-auto pb-2">
+                  <div className="grid min-w-[760px] grid-cols-3 gap-3 px-1">
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        รวม 7 วัน
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-900">
+                        {formatCurrency(totalRangeRevenue)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        เฉลี่ยต่อวัน
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-900">
+                        {formatCurrency(averageRangeRevenue)}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        วันที่ทำได้สูงสุด
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-slate-900">
+                        {formatCurrency(bestDay.revenue)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatShortThaiDate(bestDay.date)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 overflow-x-auto">
+                  <div className="min-w-[760px]">
+                    <div className="h-72 rounded-3xl bg-white p-3 shadow-sm sm:p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dailyRevenue} barGap={10}>
+                      <defs>
+                        <linearGradient id="dailyRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#2563eb" stopOpacity={0.95} />
+                          <stop offset="100%" stopColor="#93c5fd" stopOpacity={0.75} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tickFormatter={formatShortThaiDate}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fill: "#64748b", fontSize: 12 }}
+                        tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "#eff6ff" }}
+                        contentStyle={{
+                          borderRadius: 16,
+                          borderColor: "#dbeafe",
+                          boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
+                        }}
+                        formatter={(value, _name, item) => [
+                          formatCurrency(Number(value) || 0),
+                          `รายได้ (${item.payload?.bookings ?? 0} จอง)`,
+                        ]}
+                        labelFormatter={(label) => formatThaiDate(String(label))}
+                      />
+                          <Bar
+                            dataKey="revenue"
+                            fill="url(#dailyRevenueFill)"
+                            radius={[14, 14, 6, 6]}>
+                            {dailyRevenue.map((day) => (
+                              <Cell
+                                key={day.date}
+                                fill={day.date === selectedDate ? "#0f766e" : undefined}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-emerald-100 p-3 text-emerald-600">
+                      <Wallet size={22} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">สรุปของวันที่เลือก</p>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {formatThaiDate(selectedDate)}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">รายได้รวม</p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-900">
+                        {formatCurrency(selectedDayRevenue.revenue)}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">ยอดจอง</p>
+                        <p className="mt-2 text-xl font-semibold text-slate-900">
+                          {selectedDayRevenue.bookings.toLocaleString("th-TH")}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          รอบเดินรถ
+                        </p>
+                        <p className="mt-2 text-xl font-semibold text-slate-900">
+                          {selectedDaySchedules.length.toLocaleString("th-TH")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        สรุปรายเดือน
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        ย้อนหลัง 6 เดือนถึง {formatThaiMonth(selectedMonth)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {monthlyRevenue.map((month) => (
+                      <div
+                        key={month.month}
+                        className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {formatThaiMonth(month.month)}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {month.bookings.toLocaleString("th-TH")} รายการ
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {formatCurrency(month.revenue)}
+                          </p>
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600"
+                            style={{
+                              width: `${Math.max((month.revenue / maxMonthlyRevenue) * 100, 6)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 h-36 rounded-3xl bg-slate-50 p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={monthlyRevenue}>
+                        <defs>
+                          <linearGradient id="monthlyRevenueArea" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0891b2" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="month"
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fill: "#64748b", fontSize: 12 }}
+                          tickFormatter={formatThaiMonth}
+                        />
+                        <YAxis hide />
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCurrency(Number(value) || 0),
+                            "รายได้เดือน",
+                          ]}
+                          labelFormatter={(label) => formatThaiMonth(String(label))}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#0f766e"
+                          fill="url(#monthlyRevenueArea)"
+                          strokeWidth={3}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  ตารางเดินรถวันนี้
-                </h3>
-                <p className="text-sm text-gray-500">{todayDateString}</p>
+                <h3 className="text-lg font-semibold text-gray-900">ตารางเดินรถของวันที่เลือก</h3>
+                <p className="text-sm text-gray-500">{formatThaiDate(selectedDate)}</p>
               </div>
               <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto">
                 <Plus size={18} />
@@ -325,30 +650,29 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="divide-y divide-gray-100">
-              {todaySchedules.length > 0 ? (
-                todaySchedules.map((schedule) => {
+              {selectedDaySchedules.length > 0 ? (
+                selectedDaySchedules.map((schedule) => {
                   const bookedCount = schedule._count?.bookings || 0;
                   const totalSeats = schedule.bus.totalSeats;
                   const isFull = bookedCount >= totalSeats;
                   const isActive =
-                    new Date().toTimeString().slice(0, 5) >=
-                    schedule.departureTime;
+                    selectedDate === getTodayDateString() &&
+                    new Date().toTimeString().slice(0, 5) >= schedule.departureTime;
 
                   return (
                     <div
                       key={schedule.id}
-                      className="flex flex-col gap-3 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between">
+                      className="flex flex-col gap-3 p-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-4">
                         <div
-                          className={`w-2 h-12 rounded-full ${isActive ? "bg-green-500" : "bg-blue-500"}`}
+                          className={`h-12 w-2 rounded-full ${isActive ? "bg-emerald-500" : "bg-blue-500"}`}
                         />
                         <div className="min-w-0">
                           <p className="truncate font-medium text-gray-900">
                             {schedule.route.routeName}
                           </p>
                           <p className="text-sm text-gray-500">
-                            รถ {schedule.bus.busNumber} •{" "}
-                            {schedule.departureTime} น.
+                            รถ {schedule.bus.busNumber} เวลา {schedule.departureTime} น.
                           </p>
                         </div>
                       </div>
@@ -359,14 +683,14 @@ export default function DashboardPage() {
                             {bookedCount}/{totalSeats}
                           </span>
                           {isFull && (
-                            <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">
+                            <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-600">
                               เต็ม
                             </span>
                           )}
                         </div>
-                        <div className="w-24 h-2 bg-gray-200 rounded-full mt-1 overflow-hidden">
+                        <div className="mt-2 h-2 w-24 overflow-hidden rounded-full bg-gray-200 sm:ml-auto">
                           <div
-                            className="h-full bg-blue-500 rounded-full"
+                            className="h-full rounded-full bg-blue-500"
                             style={{
                               width: `${Math.min((bookedCount / totalSeats) * 100, 100)}%`,
                             }}
@@ -378,11 +702,11 @@ export default function DashboardPage() {
                 })
               ) : (
                 <div className="p-8 text-center text-gray-500">
-                  ไม่มีตารางเดินรถวันนี้
+                  ไม่มีตารางเดินรถสำหรับวันที่เลือก
                 </div>
               )}
             </div>
-          </div>
+          </section>
         </main>
       </div>
     </div>

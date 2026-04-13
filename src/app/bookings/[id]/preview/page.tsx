@@ -118,11 +118,16 @@ async function getScheduleData(scheduleId: string) {
       },
       bookings: {
         where: { status: "CONFIRMED" },
-        include: {
-          pickupStation: true,
-          dropoffStation: true,
+        select: {
+          id: true,
+          seatNumber: true,
+          price: true,
+          pickupStationName: true,
+          dropoffStationName: true,
+          createdAt: true,
+          passengerName: true,
         },
-        orderBy: { seatNumber: "asc" },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
@@ -328,6 +333,9 @@ export default async function BookingPreviewPage({
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
                         จุดส่ง
                       </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
+                        วันที่จอง
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -342,10 +350,13 @@ export default async function BookingPreviewPage({
                           ฿{booking.price.toLocaleString("th-TH")}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {booking.pickupStation?.stationName || "-"}
+                          {booking.pickupStationName || "-"}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {booking.dropoffStation?.stationName || "-"}
+                          {booking.dropoffStationName || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {new Date(booking.createdAt).toLocaleString("th-TH")}
                         </td>
                       </tr>
                     ))}

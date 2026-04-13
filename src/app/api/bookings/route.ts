@@ -30,12 +30,24 @@ function parseBookingPayload(body: unknown) {
   const passengerPhone = normalizeOptionalString(payload.passengerPhone);
   const pickupStationId = normalizePositiveInt(payload.pickupStationId);
   const dropoffStationId = normalizePositiveInt(payload.dropoffStationId);
-  const price = payload.price === undefined ? 0 : normalizeNonNegativeNumber(payload.price);
+  const pickupStationName = normalizeNonEmptyString(payload.pickupStationName);
+  const dropoffStationName = normalizeNonEmptyString(
+    payload.dropoffStationName,
+  );
+  const price =
+    payload.price === undefined ? 0 : normalizeNonNegativeNumber(payload.price);
 
-  if (!scheduleId || !seatNumber || !pickupStationId || !dropoffStationId) {
+  if (
+    !scheduleId ||
+    !seatNumber ||
+    !pickupStationId ||
+    !dropoffStationId ||
+    !pickupStationName ||
+    !dropoffStationName
+  ) {
     return {
       error:
-        "scheduleId, seatNumber, pickupStationId, and dropoffStationId are required",
+        "scheduleId, seatNumber, pickupStationId, dropoffStationId, pickupStationName, and dropoffStationName are required",
     } as const;
   }
 
@@ -59,6 +71,8 @@ function parseBookingPayload(body: unknown) {
     seatNumber,
     passengerName,
     passengerPhone,
+    pickupStationName,
+    dropoffStationName,
     price,
     status: BookingStatus.CONFIRMED,
     schedule: {

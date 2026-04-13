@@ -42,19 +42,12 @@ async function getScheduleData(scheduleId: string) {
           id: true,
           seatNumber: true,
           price: true,
-          pickupStation: {
-            select: {
-              stationName: true,
-            },
-          },
-          dropoffStation: {
-            select: {
-              stationName: true,
-            },
-          },
+          pickupStationName: true,
+          dropoffStationName: true,
+          createdAt: true,
         },
         orderBy: {
-          seatNumber: "asc",
+          createdAt: "desc",
         },
       },
     },
@@ -84,74 +77,77 @@ export default async function BookingDetailPage({ params }: PageProps) {
       scheduleId={schedule.id}
       initialSnapshot={bookingSnapshot}>
       <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/bookings"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
-              <ArrowLeft size={20} />
-              <span>กลับ</span>
-            </Link>
-            <h1 className="text-xl font-semibold text-gray-900">
-              จองตั๋วรถตู้
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      {/* Schedule Info */}
-      <div className="bg-blue-600 text-white">
-        <div className="mx-auto max-w-6xl px-4 py-6">
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Bus size={20} />
-              <span>รถหมายเลข {schedule.bus.busNumber}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPinned size={20} />
-              <span>{schedule.route.routeName}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarDays size={20} />
-              <span>
-                {new Date(schedule.departureDate).toLocaleDateString("th-TH")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock size={20} />
-              <span>{schedule.departureTime}</span>
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="mx-auto max-w-6xl px-4 py-4">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/bookings"
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+                <ArrowLeft size={20} />
+                <span>กลับ</span>
+              </Link>
+              <h1 className="text-xl font-semibold text-gray-900">
+                จองตั๋วรถตู้
+              </h1>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex gap-8">
-            <div className="flex items-center gap-2 py-4 text-sm font-medium border-b-2 border-blue-600 text-blue-600">
-              <Ticket size={18} />
-              จองที่นั่ง
+        {/* Schedule Info */}
+        <div className="bg-blue-600 text-white">
+          <div className="mx-auto max-w-6xl px-4 py-6">
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Bus size={20} />
+                <span>รถหมายเลข {schedule.bus.busNumber}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPinned size={20} />
+                <span>{schedule.route.routeName}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CalendarDays size={20} />
+                <span>
+                  {new Date(schedule.departureDate).toLocaleDateString("th-TH")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock size={20} />
+                <span>{schedule.departureTime}</span>
+              </div>
             </div>
-            <Link
-              href={`/bookings/${id}/preview`}
-              className="flex items-center gap-2 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-              <Eye size={18} />
-              ดูตั๋วที่จองแล้ว
-            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Client Component for interactivity */}
+        {/* Tabs */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="flex gap-8">
+              <div className="flex items-center gap-2 py-4 text-sm font-medium border-b-2 border-blue-600 text-blue-600">
+                <Ticket size={18} />
+                จองที่นั่ง
+              </div>
+              <Link
+                href={`/bookings/${id}/preview`}
+                className="flex items-center gap-2 py-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                <Eye size={18} />
+                ดูตั๋วที่จองแล้ว
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Client Component for interactivity */}
         <BookingClientShell
           key={`${schedule.id}:${bookingSnapshot}`}
           scheduleId={id}
           layout={layout}
           stations={schedule.route.stations}
-          bookings={schedule.bookings}
+          bookings={schedule.bookings.map((b) => ({
+            ...b,
+            createdAt: b.createdAt.toISOString(),
+          }))}
         />
       </div>
     </BookingRealtimeShell>

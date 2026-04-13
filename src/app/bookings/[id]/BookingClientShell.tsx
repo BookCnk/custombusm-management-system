@@ -14,12 +14,9 @@ interface BookingItem {
   id: number;
   seatNumber: string;
   price: number;
-  pickupStation: {
-    stationName: string;
-  } | null;
-  dropoffStation: {
-    stationName: string;
-  } | null;
+  pickupStationName: string;
+  dropoffStationName: string;
+  createdAt: string;
 }
 
 const BookingClient = dynamic(() => import("./BookingClient"), {

@@ -32,12 +32,9 @@ interface BookingItem {
   id: number;
   seatNumber: string;
   price: number;
-  pickupStation: {
-    stationName: string;
-  } | null;
-  dropoffStation: {
-    stationName: string;
-  } | null;
+  pickupStationName: string;
+  dropoffStationName: string;
+  createdAt: string;
 }
 
 interface BookingClientProps {
@@ -169,8 +166,9 @@ export default function BookingClient({
       id: -(index + 1),
       seatNumber,
       price: 0,
-      pickupStation: null,
-      dropoffStation: null,
+      pickupStationName: "",
+      dropoffStationName: "",
+      createdAt: new Date().toISOString(),
     }));
   const sortedStations = [...safeStations].sort(
     (a, b) => a.stopOrder - b.stopOrder,
@@ -178,14 +176,10 @@ export default function BookingClient({
 
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookings, setBookings] = useState<BookingItem[]>(initialBookings);
-  const [pickupStationId, setPickupStationId] = useState(
-    sortedStations[0]?.id.toString() ?? "",
-  );
-  const [dropoffStationId, setDropoffStationId] = useState(
-    sortedStations[1]?.id.toString() ??
-      sortedStations.at(-1)?.id.toString() ??
-      "",
-  );
+  const [pickupStationName, setPickupStationName] = useState("");
+  const [dropoffStationName, setDropoffStationName] = useState("");
+  const [passengerName, setPassengerName] = useState("");
+  const [passengerPhone, setPassengerPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingBookingId, setDeletingBookingId] = useState<number | null>(
     null,
@@ -203,14 +197,18 @@ export default function BookingClient({
   const seatRows = generateSeats(layout, bookedSeats, selectedSeats);
 
   const canSubmitRoute =
-    pickupStationId !== "" &&
-    dropoffStationId !== "" &&
-    pickupStationId !== dropoffStationId;
+    pickupStationName.trim() !== "" &&
+    dropoffStationName.trim() !== "" &&
+    pickupStationName.trim() !== dropoffStationName.trim();
+  const canSubmitBooking =
+    passengerName.trim() !== "" &&
+    passengerPhone.trim() !== "" &&
+    canSubmitRoute;
   const isBookingActionDisabled = !hasHydrated || selectedSeats.length === 0;
   const isSubmitDisabled =
     !hasHydrated ||
     selectedSeats.length === 0 ||
-    !canSubmitRoute ||
+    !canSubmitBooking ||
     isSubmitting;
 
   const handleSeatClick = (seat: Seat) => {
@@ -239,18 +237,19 @@ export default function BookingClient({
     }
 
     if (!canSubmitRoute) {
-      alert("กรุณาเลือกจุดขึ้นและจุดลงให้ต่างกัน");
+      alert("1 1 1 1 1 1");
       return;
     }
 
-    const pickupId = Number(pickupStationId);
-    const dropoffId = Number(dropoffStationId);
-    const parsedPrice = Number(price);
+    const pickupId = sortedStations[0]?.id ?? 1;
+    const dropoffId = sortedStations.at(-1)?.id ?? 2;
 
     if (!Number.isInteger(pickupId) || !Number.isInteger(dropoffId)) {
-      alert("ข้อมูลจุดขึ้นและจุดลงไม่ถูกต้อง");
+      alert("1 1 1 1 1 1");
       return;
     }
+
+    const parsedPrice = Number(price);
 
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       alert("กรุณาระบุราคาเป็นตัวเลขตั้งแต่ 0 ขึ้นไป");
@@ -270,7 +269,11 @@ export default function BookingClient({
             seatNumber,
             pickupStationId: pickupId,
             dropoffStationId: dropoffId,
+            pickupStationName: pickupStationName.trim(),
+            dropoffStationName: dropoffStationName.trim(),
             price: parsedPrice,
+            passengerName,
+            passengerPhone,
           }),
         });
 
@@ -434,6 +437,9 @@ export default function BookingClient({
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       จุดส่ง
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      วันที่จอง
+                    </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                       การจัดการ
                     </th>
@@ -451,10 +457,13 @@ export default function BookingClient({
                         ฿{booking.price.toLocaleString("th-TH")}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {booking.pickupStation?.stationName || "-"}
+                        {booking.pickupStationName || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {booking.dropoffStation?.stationName || "-"}
+                        {booking.dropoffStationName || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {new Date(booking.createdAt).toLocaleString("th-TH")}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -506,38 +515,58 @@ export default function BookingClient({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              จาก
+              จาก (จุดขึ้น)
             </label>
-            <select
-              value={pickupStationId}
-              onChange={(e) => setPickupStationId(e.target.value)}
+            <input
+              type="text"
+              value={pickupStationName}
+              onChange={(e) => setPickupStationName(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-              required>
-              <option value="">เลือกจุดขึ้น</option>
-              {sortedStations.map((station) => (
-                <option key={station.id} value={station.id}>
-                  {station.stationName}
-                </option>
-              ))}
-            </select>
+              placeholder="ใส่ชื่อจุดขึ้น"
+              required
+            />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              ไป
+              ไป (จุดลง)
             </label>
-            <select
-              value={dropoffStationId}
-              onChange={(e) => setDropoffStationId(e.target.value)}
+            <input
+              type="text"
+              value={dropoffStationName}
+              onChange={(e) => setDropoffStationName(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-              required>
-              <option value="">เลือกจุดลง</option>
-              {sortedStations.map((station) => (
-                <option key={station.id} value={station.id}>
-                  {station.stationName}
-                </option>
-              ))}
-            </select>
+              placeholder="ใส่ชื่อจุดลง"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              ชื่อผู้โดยสาร
+            </label>
+            <input
+              type="text"
+              value={passengerName}
+              onChange={(e) => setPassengerName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              placeholder="ใส่ชื่อผู้โดยสาร"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              เบอร์โทรศัพท์
+            </label>
+            <input
+              type="tel"
+              value={passengerPhone}
+              onChange={(e) => setPassengerPhone(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+              placeholder="ใส่เบอร์โทรศัพท์"
+              required
+            />
           </div>
 
           <div>
@@ -590,8 +619,8 @@ export default function BookingClient({
                     ที่นั่ง {booking.seatNumber}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {booking.pickupStation?.stationName || "-"} ไป{" "}
-                    {booking.dropoffStation?.stationName || "-"}
+                    {booking.pickupStationName || "-"} ไป{" "}
+                    {booking.dropoffStationName || "-"}
                   </p>
                 </div>
                 <button

@@ -86,9 +86,14 @@ export const scheduleDetailInclude = Prisma.validator<Prisma.ScheduleInclude>()(
       },
     },
     bookings: {
-      include: {
-        pickupStation: true,
-        dropoffStation: true,
+      select: {
+        id: true,
+        seatNumber: true,
+        price: true,
+        pickupStationName: true,
+        dropoffStationName: true,
+        createdAt: true,
+        status: true,
       },
       orderBy: { createdAt: "desc" },
     },
@@ -114,8 +119,6 @@ export const bookingInclude = Prisma.validator<Prisma.BookingInclude>()({
       },
     },
   },
-  pickupStation: true,
-  dropoffStation: true,
 });
 
 export const bookingRouteValidationInclude =

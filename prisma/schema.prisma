@@ -75,16 +75,18 @@ model Schedule {
 }
 
 model Booking {
-  id               Int           @id @default(autoincrement())
-  scheduleId       Int
-  seatNumber       String
-  passengerName    String?
-  passengerPhone   String?
-  pickupStationId  Int
-  dropoffStationId Int
-  price            Float         @default(0.0)
-  status           BookingStatus @default(CONFIRMED)
-  createdAt        DateTime      @default(now())
+  id                  Int           @id @default(autoincrement())
+  scheduleId          Int
+  seatNumber          String
+  passengerName       String?
+  passengerPhone      String?
+  pickupStationId     Int
+  dropoffStationId    Int
+  pickupStationName   String        @default("")
+  dropoffStationName  String        @default("")
+  price               Float         @default(0.0)
+  status              BookingStatus @default(CONFIRMED)
+  createdAt           DateTime      @default(now())
 
   schedule       Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   pickupStation  RouteStation @relation("PickupStation", fields: [pickupStationId], references: [id], onDelete: Restrict, onUpdate: Cascade)

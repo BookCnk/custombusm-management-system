@@ -1,0 +1,8 @@
+:80 {
+    reverse_proxy app:3000
+}
+
+custombusm.chanakarndev.site {
+    encode gzip zstd
+    reverse_proxy app:3000
+}

@@ -1,5 +1,6 @@
 services:
   app:
+    container_name: tuition-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -20,30 +21,19 @@ services:
     expose:
       - "${PORT:-3000}"
     restart: unless-stopped
+    networks:
+      - shared_proxy
     # healthcheck:
     #   test:
     #     [
     #       "CMD-SHELL",
-    #       'node -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3000) + ''/login'').then((res) => process.exit(res.ok ? 0 : 1)).catch(() => process.exit(1))"',
+    #       "node -e \"fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/login').then((res) => process.exit(res.ok ? 0 : 1)).catch(() => process.exit(1))\"",
     #     ]
     #   interval: 30s
     #   timeout: 10s
     #   retries: 3
     #   start_period: 40s
 
-  caddy:
-    image: caddy:2-alpine
-    depends_on:
-      - app
-    ports:
-      - "80:80"
-      - "443:443"
-    restart: unless-stopped
-    volumes:
-      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
-volumes:
-  caddy_data:
-  caddy_config:
+networks:
+  shared_proxy:
+    external: true

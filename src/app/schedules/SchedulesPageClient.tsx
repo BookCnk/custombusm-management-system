@@ -25,6 +25,7 @@ import {
 import { Header } from "../components/Header";
 import { Sidebar } from "../components/Sidebar";
 import CustomSelect from "../components/CustomSelect";
+import TimePicker from "./components/TimePicker";
 import { apiRequest } from "@/lib/api-client";
 import {
   mapBooking,
@@ -709,46 +710,13 @@ export default function SchedulesPageClient({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                เวลาออกเดินทาง
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={23}
-                  placeholder="ชั่วโมง"
-                  value={formData.departureTime?.split(":")[0] || ""}
-                  onChange={(e) => {
-                    const hours = e.target.value.padStart(2, "0");
-                    const minutes =
-                      formData.departureTime?.split(":")[1] || "00";
-                    setFormData((prev) => ({
-                      ...prev,
-                      departureTime: `${hours}:${minutes}`,
-                    }));
-                  }}
-                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                />
-                <span className="text-gray-400 font-bold">:</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  placeholder="นาที"
-                  value={formData.departureTime?.split(":")[1] || ""}
-                  onChange={(e) => {
-                    const hours = formData.departureTime?.split(":")[0] || "00";
-                    const minutes = e.target.value.padStart(2, "0");
-                    setFormData((prev) => ({
-                      ...prev,
-                      departureTime: `${hours}:${minutes}`,
-                    }));
-                  }}
-                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
-                />
-                <span className="text-sm text-gray-500">น.</span>
-              </div>
+              <TimePicker
+                value={formData.departureTime}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, departureTime: value }))
+                }
+                label="0-23"
+              />
             </div>
           </div>
 

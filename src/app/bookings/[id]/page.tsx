@@ -87,9 +87,6 @@ export default async function BookingDetailPage({ params }: PageProps) {
                 <ArrowLeft size={20} />
                 <span>กลับ</span>
               </Link>
-              <h1 className="text-xl font-semibold text-gray-900">
-                จองตั๋วรถตู้
-              </h1>
             </div>
           </div>
         </div>

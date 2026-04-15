@@ -1,6 +1,6 @@
 services:
   app:
-    container_name: tuition-app
+    container_name: custombus-app
     build:
       context: .
       dockerfile: Dockerfile

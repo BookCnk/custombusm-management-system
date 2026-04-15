@@ -2,7 +2,7 @@
     reverse_proxy app:3000
 }
 
-custombusm.chanakarndev.site {
+custombus.chanakarndev.site {
     encode gzip zstd
     reverse_proxy app:3000
 }
